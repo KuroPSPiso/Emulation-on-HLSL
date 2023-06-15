@@ -1,0 +1,126 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+
+float ResolutionX;
+float ResolutionY;
+
+struct Register
+{
+    float data;
+};
+
+struct SystemInfo
+{
+    float data;
+};
+
+struct SystemRam
+{
+    uint data;
+};
+
+RWStructuredBuffer<Register> Registers; //PC (Program Counter) = 0, A(Accumilator) = 1
+RWStructuredBuffer<SystemRam> RAM;
+RWStructuredBuffer<SystemInfo> Clocks; //TARGETFPS, CYCLE, OLDSYSTIME, FRAMECOUNTER
+
+float SystemTime;
+float FixedFPS;
+bool FPSEnable;
+
+static const int1 CHARSET[150] =
+{
+    0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01,
+    0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00,
+    0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,
+    0x01, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,
+    0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x01,
+    0x01, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01,
+    0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
+    0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,
+    0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01,
+    0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01
+};
+
+void ShowFPS(float val, float2 xy)
+{
+    if (xy.x > 10 || xy.y > 4) return;
+
+    val = val + 0.01; //float rounding correction
+    int1 hundreds = 0, tens = 0, os = 0;
+
+    if (val > 100)
+    {
+        hundreds = (val % 1000) / 100;
+    }
+    if (val > 10)
+    {
+        tens = (val % 100) / 10;
+    }
+    if (val > 0)
+    {
+        os = val % 10;
+    }
+
+    bool setColour = false;
+
+    if (xy.x <= 2) {
+        setColour = CHARSET[(xy.x + (xy.y * 3)) + 15 * hundreds]; //[x--]
+    }
+    else if (xy.x == 3 || xy.x == 7) setColour = false; //whitespace
+    else if (xy.x - 4 <= 2) {
+        setColour = CHARSET[((xy.x - 4) + (xy.y * 3)) + 15 * tens ]; //[-x-]
+    }
+    else if (xy.x - 8 <= 2) {
+        setColour = CHARSET[((xy.x - 8) + (xy.y * 3)) + 15 * os]; //[--x]
+    }
+
+    if(setColour) Result[xy] = float4(1.0, 1.0, 1.0, 0.0);
+};
+
+[numthreads(10,1,1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    SystemInfo targetFPS = Clocks[0];
+    SystemInfo cycle = Clocks[1];
+    SystemInfo oldSystemTime = Clocks[2];
+    SystemInfo gpuPasses = Clocks[3];
+    float elapsed = SystemTime - oldSystemTime.data;
+
+    if (id.x == 0 && id.y == 0) {
+        //full frame render counter
+        gpuPasses.data++;
+        Clocks[3] = gpuPasses;
+
+        //check fps
+        if (elapsed > targetFPS.data) {
+            Clocks[5 + Clocks[4].data].data = elapsed;
+            Clocks[4].data++;
+            if (Clocks[4].data > 3) Clocks[4].data = 0;
+
+            cycle.data++;
+            oldSystemTime.data = oldSystemTime.data + targetFPS.data;
+
+            Clocks[1] = cycle;
+            Clocks[2] = oldSystemTime;
+        }
+    }
+
+    float x = (id.x / ResolutionX) + (gpuPasses.data / 1000);
+    float y = id.y / ResolutionY;
+
+    Result[id.xy] = float4(x, y, 0.0, 0.0);
+
+    if (FPSEnable) {
+        float fpsData = 0;
+        if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data)/4); //fps
+        else if (FixedFPS == 6) fpsData = elapsed; //elapsed
+        else if (FixedFPS == 5) fpsData = SystemTime - oldSystemTime.data; //elapsed
+        else if (FixedFPS == 4) fpsData = SystemTime; //sys ms
+        else fpsData = Clocks[FixedFPS].data; //target ms, cycle, oldsys ms, frame counter 
+        ShowFPS(fpsData, id.xy);
+    }
+};
