@@ -1,0 +1,10 @@
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\bin\Debug\GPUROMIMAGE.exe.config
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\bin\Debug\GPUROMIMAGE.exe
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\bin\Debug\GPUROMIMAGE.pdb
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\obj\Debug\GPUROMIMAGE.csproj.AssemblyReference.cache
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\obj\Debug\GPUROMIMAGE.Form1.resources
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\obj\Debug\GPUROMIMAGE.Properties.Resources.resources
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\obj\Debug\GPUROMIMAGE.csproj.GenerateResource.cache
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\obj\Debug\GPUROMIMAGE.csproj.CoreCompileInputs.cache
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\obj\Debug\GPUROMIMAGE.exe
+R:\Projects\2021.3.8f1\GPU emulator\cs\GPUROMIMAGE\obj\Debug\GPUROMIMAGE.pdb

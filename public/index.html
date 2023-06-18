@@ -1,0 +1,149 @@
+<html>
+<head>
+    <style>
+        canvas {
+            border: 2px dashed black;
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <input id="romLoader" type="file" />
+        <input id="canvasSize" type="number" step="32" value="1024" />
+        <a href='javascript:;' target="#" onclick="saveImage()" download="ROM.png">SAVE</a>
+    </div>
+    <div>
+        <canvas id="imgRenderer" width="1024" height="1024"></canvas>
+    </div>
+    <script>
+        const romLoader = document.getElementById("romLoader")
+        const canvasSize = document.getElementById("canvasSize")
+        const imgRenderer = document.getElementById("imgRenderer")
+        var length = 1024
+        var fileName = 'untitled'
+
+
+        var downloadImage = function (data, filename = 'untitled.png') {
+            var a = document.createElement('a');
+            a.href = data;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            delete a;
+        }
+
+        var saveImage = function () {
+            var image = imgRenderer.toDataURL("image/png");
+            downloadImage(image, `${fileName}.png`);
+
+        }
+
+        var processFile = function (arr, len) {
+
+            //RGBA rom
+            console.log(`converting 'fileinfo + ${len} bytes' to ${Math.ceil((len + 2) / 4)} pixels`)
+
+            let x = 0
+            let y = 1
+
+            console.log('size: ', length)
+            var imgData = ctx.createImageData(length, length)
+
+            /* Data format
+             * [00-04 size] uint32
+             */
+            imgData.data[00] = 0
+            imgData.data[01] = 0
+            imgData.data[02] = (len >> 24) & 0xFF
+            imgData.data[03] = 0xFF
+            imgData.data[04] = (len >> 16) & 0xFF
+            imgData.data[05] = (len >> 8) & 0xFF
+            imgData.data[06] = len & 0xFF
+            imgData.data[07] = 0xFF
+
+            console.log("len ", imgData.data[00], imgData.data[01], imgData.data[02], imgData.data[03], imgData.data[04], imgData.data[05], imgData.data[06], imgData.data[07])
+
+            console.log(imgData)
+
+            for (let i = 8; i < imgData.width * imgData.height; i += 4) {
+                imgData.data[i + 0] = 0x00
+                imgData.data[i + 1] = 0x00
+                imgData.data[i + 2] = 0x00
+                imgData.data[i + 3] = 0xFF
+            }
+            console.log(imgData)
+
+            /*
+            for (let i = 0; i < len; i++) {
+                imgData.data[y * 4 + x] = arr[i]
+
+                x++
+                if (x >= 3) {
+                    imgData.data[y * 4 + x] = 0xFF
+                    y++
+                    x = 0
+                }
+            }*/
+            //ctx.putImageData(imgData, 0, 0)
+            imgRenderer.width = imgData.width;
+            imgRenderer.height = imgData.height;
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        var loadFile = function (file) {
+            fileName = file.name
+            console.log(`processing: ${fileName}`)
+
+            const reader = new FileReader()
+            const data = []
+            let len = 0
+            reader.readAsArrayBuffer(file)
+            reader.addEventListener('loadend', (event) => {
+                if (event.target.readyState === FileReader.DONE) {
+                    let buffer = event.target.result
+                    let array = new Uint8Array(buffer)
+                    len = array.length
+                    for (let i = 0; i < array.length; i++) {
+                        data.push(array[i])
+                    }
+
+                    processFile(data, len)
+                }
+            })
+
+        }
+
+        romLoader.addEventListener('change', (event) => {
+            const files = event.target.files
+            console.log(files)
+            if (typeof files[0] !== undefined) {
+                loadFile(files[0])
+            }
+        })
+
+        canvasSize.addEventListener('change', (event) => {
+            length = event.target.value
+            ctx.canvas.width = length
+            ctx.canvas.height = length
+            imgData = ctx.createImageData(length, length)
+        })
+
+        window.addEventListener('load', () => {
+            length = canvasSize.value
+            ctx.canvas.width = length
+            ctx.canvas.height = length
+            imgData = ctx.createImageData(length, length)
+        })
+
+        const ctx = imgRenderer.getContext('2d')
+        ctx.mozImageSmoothingEnabled = false;
+        ctx.oImageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+        ctx.imageSmoothingEnabled = false;
+
+    </script>
+</body>
+</html>

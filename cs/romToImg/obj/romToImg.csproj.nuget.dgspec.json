@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "restore": {
+    "R:\\Projects\\2021.3.8f1\\GPU emulator\\cs\\romToImg\\romToImg.csproj": {}
+  },
+  "projects": {
+    "R:\\Projects\\2021.3.8f1\\GPU emulator\\cs\\romToImg\\romToImg.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "R:\\Projects\\2021.3.8f1\\GPU emulator\\cs\\romToImg\\romToImg.csproj",
+        "projectName": "romToImg",
+        "projectPath": "R:\\Projects\\2021.3.8f1\\GPU emulator\\cs\\romToImg\\romToImg.csproj",
+        "packagesPath": "C:\\Users\\bogaa\\.nuget\\packages\\",
+        "outputPath": "R:\\Projects\\2021.3.8f1\\GPU emulator\\cs\\romToImg\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\bogaa\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net5.0-windows7.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net5.0-windows7.0": {
+            "targetAlias": "net5.0-windows",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net5.0-windows7.0": {
+          "targetAlias": "net5.0-windows",
+          "dependencies": {
+            "System.Drawing.Common": {
+              "target": "Package",
+              "version": "[7.0.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            },
+            "Microsoft.WindowsDesktop.App.WPF": {
+              "privateAssets": "none"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\5.0.302\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

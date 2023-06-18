@@ -10,7 +10,7 @@ float ResolutionY;
 
 struct Register
 {
-    float data;
+    uint data;
 };
 
 struct SystemInfo
@@ -23,14 +23,17 @@ struct SystemRam
     uint data;
 };
 
-RWStructuredBuffer<Register> Registers; //PC (Program Counter) = 0, A(Accumilator) = 1
-RWStructuredBuffer<SystemRam> RAM;
+RWStructuredBuffer<Register> Registers; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = SPEED, 0x14 = RESET
+RWStructuredBuffer<SystemRam> RAM; //0x00 - 0xFFF
+RWStructuredBuffer<SystemRam> STACK; //could be part of RAM above 4096 '\_(-_- )_/`
 RWStructuredBuffer<SystemInfo> Clocks; //TARGETFPS, CYCLE, OLDSYSTIME, FRAMECOUNTER
 
 float SystemTime;
 float FixedFPS;
 bool FPSEnable;
+uint INPUT;
 
+//custom font numeric sprites for debug/fps
 static const int1 CHARSET[150] =
 {
     0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01,
@@ -43,6 +46,43 @@ static const int1 CHARSET[150] =
     0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,
     0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01,
     0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01
+};
+
+//default hexadecimal sprites font
+static const uint1 SPRITES_CHARSET[80] = 
+{
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
+
+void LoadCharROM()
+{
+    for (uint i = 0; i < 40; i++)
+    {
+        RAM[i].data = SPRITES_CHARSET[i];
+    }
+};
+
+void Reset()
+{
+    if (!Registers[0x14].data) return;
+
+    LoadCharROM();
+    Registers[0x14].data = 0;
 };
 
 void ShowFPS(float val, float2 xy)
@@ -81,8 +121,23 @@ void ShowFPS(float val, float2 xy)
     if(setColour) Result[xy] = float4(1.0, 1.0, 1.0, 0.0);
 };
 
-[numthreads(10,1,1)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+void HandleInput()
+{
+    //joymap 0x00 - 0x0F
+    uint input = INPUT & 0x0F;
+    if (INPUT >> 1 & 0x01)
+    {
+        //do logic
+    }
+};
+
+void RawSound()
+{
+    //tbd
+};
+
+
+void ProcessDisplayRendering(uint3 id : SV_DispatchThreadID)
 {
     SystemInfo targetFPS = Clocks[0];
     SystemInfo cycle = Clocks[1];
@@ -91,6 +146,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float elapsed = SystemTime - oldSystemTime.data;
 
     if (id.x == 0 && id.y == 0) {
+        //Reset();
+        //HandleInput();
+
         //full frame render counter
         gpuPasses.data++;
         Clocks[3] = gpuPasses;
@@ -116,11 +174,29 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     if (FPSEnable) {
         float fpsData = 0;
-        if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data)/4); //fps
+        if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data) / 4); //fps
         else if (FixedFPS == 6) fpsData = elapsed; //elapsed
         else if (FixedFPS == 5) fpsData = SystemTime - oldSystemTime.data; //elapsed
         else if (FixedFPS == 4) fpsData = SystemTime; //sys ms
         else fpsData = Clocks[FixedFPS].data; //target ms, cycle, oldsys ms, frame counter 
         ShowFPS(fpsData, id.xy);
+    }
+};
+
+void ProcessCPU(uint3 id : SV_DispatchThreadID)
+{
+
+}
+
+[numthreads(10,1,1)]
+void CSMain(uint3 id : SV_DispatchThreadID, uint threadIndex : SV_GroupIndex, uint3 threadid : SV_GroupThreadID)
+{
+    if (threadid.y == 0)
+    {
+        ProcessDisplayRendering(id);
+    }
+    else if (threadid.y == 0)
+    {
+        ProcessCPU(id);
     }
 };

@@ -316,12 +316,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: d55e86c3314926844aaf429d1e4b421d, type: 3}
   renderTexture: {fileID: 0}
+  DebugROMData: {fileID: 2800000, guid: b52774d95c3eca94ab9fd4b13033643b, type: 3}
   trueResolutionX: 256
   trueResolutionY: 256
   resolutionX: 256
   resolutionY: 256
   FPS: 60
   Cycle: 0
+  RAMCapacity: 4096
   FixedFPS: 7
   FPSEnable: 1
   IsDebug: 1

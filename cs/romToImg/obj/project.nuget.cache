@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "icc05bRRzLARyL0apuPRjmV6SMmHr0gnO1jmdi5h9rT98ONfNQU0rdrvgU6Mg61e1tpqvWzgEArunuSyfxE+EA==",
+  "success": true,
+  "projectFilePath": "R:\\Projects\\2021.3.8f1\\GPU emulator\\cs\\romToImg\\romToImg.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\bogaa\\.nuget\\packages\\system.drawing.common\\7.0.0\\system.drawing.common.7.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
