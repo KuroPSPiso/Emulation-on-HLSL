@@ -145,6 +145,30 @@ void ProcessDisplayRendering(uint3 id : SV_DispatchThreadID)
     SystemInfo gpuPasses = Clocks[3];
     float elapsed = SystemTime - oldSystemTime.data;
 
+    float x = (id.x / ResolutionX) + (gpuPasses.data / 1000);
+    float y = id.y / ResolutionY;
+
+    Result[id.xy] = float4(x, y, 0.0, 0.0);
+
+    if (FPSEnable) {
+        float fpsData = 0;
+        if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data) / 4); //fps
+        else if (FixedFPS == 6) fpsData = elapsed; //elapsed
+        else if (FixedFPS == 5) fpsData = SystemTime - oldSystemTime.data; //elapsed
+        else if (FixedFPS == 4) fpsData = SystemTime; //sys ms
+        else fpsData = Clocks[FixedFPS].data; //target ms, cycle, oldsys ms, frame counter 
+        ShowFPS(fpsData, id.xy);
+    }
+};
+
+void ProcessCPU(uint3 id : SV_DispatchThreadID)
+{
+    SystemInfo targetFPS = Clocks[0];
+    SystemInfo cycle = Clocks[1];
+    SystemInfo oldSystemTime = Clocks[2];
+    SystemInfo gpuPasses = Clocks[3];
+    float elapsed = SystemTime - oldSystemTime.data;
+
     if (id.x == 0 && id.y == 0) {
         //Reset();
         //HandleInput();
@@ -166,37 +190,17 @@ void ProcessDisplayRendering(uint3 id : SV_DispatchThreadID)
             Clocks[2] = oldSystemTime;
         }
     }
-
-    float x = (id.x / ResolutionX) + (gpuPasses.data / 1000);
-    float y = id.y / ResolutionY;
-
-    Result[id.xy] = float4(x, y, 0.0, 0.0);
-
-    if (FPSEnable) {
-        float fpsData = 0;
-        if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data) / 4); //fps
-        else if (FixedFPS == 6) fpsData = elapsed; //elapsed
-        else if (FixedFPS == 5) fpsData = SystemTime - oldSystemTime.data; //elapsed
-        else if (FixedFPS == 4) fpsData = SystemTime; //sys ms
-        else fpsData = Clocks[FixedFPS].data; //target ms, cycle, oldsys ms, frame counter 
-        ShowFPS(fpsData, id.xy);
-    }
-};
-
-void ProcessCPU(uint3 id : SV_DispatchThreadID)
-{
-
 }
 
-[numthreads(10,1,1)]
+[numthreads(10,1,2)]
 void CSMain(uint3 id : SV_DispatchThreadID, uint threadIndex : SV_GroupIndex, uint3 threadid : SV_GroupThreadID)
 {
-    if (threadid.y == 0)
-    {
-        ProcessDisplayRendering(id);
-    }
-    else if (threadid.y == 0)
+    if (threadid.z == 0)
     {
         ProcessCPU(id);
+    }
+    else if (threadid.z == 1)
+    {
+        ProcessDisplayRendering(id);
     }
 };
