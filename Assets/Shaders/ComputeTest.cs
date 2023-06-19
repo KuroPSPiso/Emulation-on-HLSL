@@ -38,6 +38,7 @@ public class ComputeTest : MonoBehaviour
 
     private SystemInfo[] clocks;
     private SystemRam[] ram;
+    private SystemRam[] vram;
     private SystemRam[] stack;
     private SystemRegister[] registers;
 
@@ -48,6 +49,10 @@ public class ComputeTest : MonoBehaviour
         }
     }
     private ComputeBuffer clocksBuffer;
+    private ComputeBuffer ramBuffer;
+    private ComputeBuffer vramBuffer;
+    private ComputeBuffer stackBuffer;
+    private ComputeBuffer registersBuffer;
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
@@ -79,18 +84,51 @@ public class ComputeTest : MonoBehaviour
     {
         this.GenerateClocks();
 
-        /*
+        this.GenerateRam();
+
+        this.GenerateRegisters();
+    }
+
+    private void GenerateRam()
+    {
         this.ram = new SystemRam[this.RAMCapacity];
         this.stack = new SystemRam[256]; //stack w/o stack counter/pointer
-        this.registers = new SystemRegister[20]; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = SPEED
+        this.vram = new SystemRam[resolutionX * resolutionY];
+
+        int uiDataSize = sizeof(uint);
+        int dataSize = uiDataSize;
+        this.ramBuffer = new ComputeBuffer(this.ram.Length, dataSize);
+        this.vramBuffer = new ComputeBuffer(this.vram.Length, dataSize);
+        this.stackBuffer = new ComputeBuffer(this.ram.Length, dataSize);
+
+        this.ramBuffer.SetData(this.ram);
+        this.computeShader.SetBuffer(0, "RAM", this.ramBuffer);
+
+        //this.vramBuffer.SetData(this.vram);
+        //this.computeShader.SetBuffer(0, "RAM", this.vramBuffer);
+
+        this.stackBuffer.SetData(this.stack);
+        this.computeShader.SetBuffer(0, "STACK", this.stackBuffer);
+    }
+
+    private void GenerateRegisters()
+    {
+        this.registers = new SystemRegister[0x15]; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = SPEED
         this.registers[0x10].data = 0x200;
         this.registers[0x13].data = 10;
-        this.registers[0x14].data = 1;*/
+        this.registers[0x14].data = 1;
+
+        int uiDataSize = sizeof(uint);
+        int dataSize = uiDataSize;
+        this.registersBuffer = new ComputeBuffer(this.ram.Length, dataSize);
+
+        this.registersBuffer.SetData(this.registers);
+        this.computeShader.SetBuffer(0, "Registers", this.registersBuffer);
     }
 
     private void GenerateClocks()
     {
-        clocks = new SystemInfo[]
+        this.clocks = new SystemInfo[]
         {
             new SystemInfo(){data = 1000 / FPS},
             new SystemInfo(){data = 0},
@@ -100,10 +138,9 @@ public class ComputeTest : MonoBehaviour
 
         int fDataSize = sizeof(float);
         int dataSize = fDataSize;
-        this.clocksBuffer = new ComputeBuffer(clocks.Length + 5, dataSize);
+        this.clocksBuffer = new ComputeBuffer(this.clocks.Length + 5, dataSize);
 
-
-        this.clocksBuffer.SetData(clocks);
+        this.clocksBuffer.SetData(this.clocks);
         this.computeShader.SetBuffer(0, "Clocks", this.clocksBuffer);
     }
 
@@ -116,9 +153,7 @@ public class ComputeTest : MonoBehaviour
                 int length = 0;
                 Color clrLength = this.DebugROMData.GetPixel(1, 0);
                 Color clrLength2 = this.DebugROMData.GetPixel(0, 0);
-
-                //Color32[] clrLength = this.DebugROMData.GetPixels32(1, 0);
-
+                
                 int b1, g1, r1, b2;
 
                 //little-endian size
@@ -134,7 +169,7 @@ public class ComputeTest : MonoBehaviour
         {
             this.clocksBuffer.GetData(this.clocks);
 
-            //if(this.IsDebug) Debug.Log($"frames in ms(target):{this.clocks[0].data}, cycle:{this.clocks[1].data}, sys:{(float)this.SystemTime}, oldsys:{(long)this.clocks[2].data}, passes:{clocks[3].data}");
+            if(this.IsDebug) Debug.Log($"frames in ms(target):{this.clocks[0].data}, cycle:{this.clocks[1].data}, sys:{(float)this.SystemTime}, oldsys:{(long)this.clocks[2].data}, passes:{clocks[3].data}");
         }
 
         switch (Input.inputString)
@@ -161,11 +196,17 @@ public class ComputeTest : MonoBehaviour
 
     private void OnDisable()
     {
-        if (clocksBuffer != null) clocksBuffer.Dispose();
+        if (this.clocksBuffer != null) clocksBuffer.Dispose();
+        if (this.ramBuffer != null) ramBuffer.Dispose();
+        if (this.stackBuffer != null) stackBuffer.Dispose();
+        if (this.registersBuffer != null) registersBuffer.Dispose();
     }
 
     private void OnApplicationQuit()
     {
-        if (clocksBuffer != null) clocksBuffer.Dispose();
+        if (this.clocksBuffer != null) clocksBuffer.Dispose();
+        if (this.ramBuffer != null) ramBuffer.Dispose();
+        if (this.stackBuffer != null) stackBuffer.Dispose();
+        if (this.registersBuffer != null) registersBuffer.Dispose();
     }
 }

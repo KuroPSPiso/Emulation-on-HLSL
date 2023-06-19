@@ -170,8 +170,8 @@ void ProcessCPU(uint3 id : SV_DispatchThreadID)
     float elapsed = SystemTime - oldSystemTime.data;
 
     if (id.x == 0 && id.y == 0) {
-        //Reset();
-        //HandleInput();
+        Reset();
+        HandleInput();
 
         //full frame render counter
         gpuPasses.data++;
