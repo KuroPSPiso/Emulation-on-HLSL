@@ -4,6 +4,7 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWTexture2D<float4> Result;
+Texture2D<uint4> ROM;
 
 float ResolutionX;
 float ResolutionY;
@@ -25,6 +26,7 @@ struct SystemRam
 
 RWStructuredBuffer<Register> Registers; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = SPEED, 0x14 = RESET
 RWStructuredBuffer<SystemRam> RAM; //0x00 - 0xFFF
+RWStructuredBuffer<SystemRam> VRAM; //0x00 - ?
 RWStructuredBuffer<SystemRam> STACK; //could be part of RAM above 4096 '\_(-_- )_/`
 RWStructuredBuffer<SystemInfo> Clocks; //TARGETFPS, CYCLE, OLDSYSTIME, FRAMECOUNTER
 
@@ -77,11 +79,25 @@ void LoadCharROM()
     }
 };
 
+void LoadProgram()
+{
+    uint width = 0;
+    uint height = 0;
+    uint noOfLvls = 0;
+    ROM.GetDimensions(width, height);
+
+    SystemRam ws = VRAM[0];
+    ws.data = width; //TODO: replace with 0-6 bytes
+    VRAM[0] = ws;
+    //int2 texRes = textureResolution(ROM);
+};
+
 void Reset()
 {
     if (!Registers[0x14].data) return;
 
     LoadCharROM();
+    LoadProgram();
     Registers[0x14].data = 0;
 };
 

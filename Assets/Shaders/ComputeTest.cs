@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 public class ComputeTest : MonoBehaviour
@@ -8,7 +9,7 @@ public class ComputeTest : MonoBehaviour
     public RenderTexture renderTexture;
 
     //TOOD: remove TEMP
-    public Texture2D DebugROMData;
+    public Texture2D ROMData;
 
     public int trueResolutionX = 256, trueResolutionY = 256;
     public int resolutionX = 256, resolutionY = 256;
@@ -65,6 +66,7 @@ public class ComputeTest : MonoBehaviour
             this.Reset();
         }
 
+        this.computeShader.SetTexture(0, "ROM", this.ROMData);
         this.computeShader.SetFloat("Cycle", this.Cycle);
         this.computeShader.SetTexture(0, "Result", this.renderTexture);
         this.computeShader.SetFloat("ResolutionX", this.resolutionX);
@@ -104,8 +106,8 @@ public class ComputeTest : MonoBehaviour
         this.ramBuffer.SetData(this.ram);
         this.computeShader.SetBuffer(0, "RAM", this.ramBuffer);
 
-        //this.vramBuffer.SetData(this.vram);
-        //this.computeShader.SetBuffer(0, "RAM", this.vramBuffer);
+        this.vramBuffer.SetData(this.vram);
+        this.computeShader.SetBuffer(0, "VRAM", this.vramBuffer);
 
         this.stackBuffer.SetData(this.stack);
         this.computeShader.SetBuffer(0, "STACK", this.stackBuffer);
@@ -148,11 +150,12 @@ public class ComputeTest : MonoBehaviour
     {
         if(this.IsDebug)
         {
-            if(this.DebugROMData != null)
+            this.ClearLog();
+            if(this.ROMData != null)
             {
                 int length = 0;
-                Color clrLength = this.DebugROMData.GetPixel(1, 0);
-                Color clrLength2 = this.DebugROMData.GetPixel(0, 0);
+                Color clrLength = this.ROMData.GetPixel(1, 0);
+                Color clrLength2 = this.ROMData.GetPixel(0, 0);
                 
                 int b1, g1, r1, b2;
 
@@ -163,6 +166,8 @@ public class ComputeTest : MonoBehaviour
                 length += (b2 = (int)((clrLength2.b * 100) * 256)) / 100 << 24;
                 Debug.Log($"ROM size:{b1 / 100},{g1 / 100},{r1 / 100},{b2 / 100} ||" + length);
             }
+            this.vramBuffer.GetData(vram);
+            Debug.Log($"width{vram[0].data}");
         }
 
         if (this.clocksBuffer != null && IsDebug)
@@ -208,5 +213,12 @@ public class ComputeTest : MonoBehaviour
         if (this.ramBuffer != null) ramBuffer.Dispose();
         if (this.stackBuffer != null) stackBuffer.Dispose();
         if (this.registersBuffer != null) registersBuffer.Dispose();
+    }
+    public void ClearLog()
+    {
+        var assembly = Assembly.GetAssembly(typeof(UnityEditor.Editor));
+        var type = assembly.GetType("UnityEditor.LogEntries");
+        var method = type.GetMethod("Clear");
+        method.Invoke(new object(), null);
     }
 }
