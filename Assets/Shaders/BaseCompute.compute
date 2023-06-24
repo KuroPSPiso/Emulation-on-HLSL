@@ -4,7 +4,7 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWTexture2D<float4> Result;
-Texture2D<uint4> ROM;
+RWTexture2D<float4> ROM;
 
 float ResolutionX;
 float ResolutionY;
@@ -79,25 +79,108 @@ void LoadCharROM()
     }
 };
 
-void LoadProgram()
+void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThreadID)
 {
     uint width = 0;
     uint height = 0;
     uint noOfLvls = 0;
     ROM.GetDimensions(width, height);
 
-    SystemRam ws = VRAM[0];
-    ws.data = width; //TODO: replace with 0-6 bytes
-    VRAM[0] = ws;
-    //int2 texRes = textureResolution(ROM);
+    uint len = 0;
+
+    
+    //get len
+    if (width + height > 2) {
+        uint b1, g1, r1, b2;
+        float4 clrLength = 0, clrLength2 = 0;
+
+        clrLength = ROM.Load(int3(1, 0, 0));
+        clrLength2 = ROM.Load(int3(0, 0, 0));
+
+        b1 = (uint)round(clrLength.b * 255.0);
+        g1 = (uint)round(clrLength.g * 255.0);
+        r1 = (uint)round(clrLength.r * 255.0);
+        b2 = (uint)round(clrLength2.b * 255.0);
+
+        len += b1 << 0;
+        len += g1 << 8;
+        len += r1 << 16;
+        len += b2 << 24;
+
+        uint debug = 1;
+
+        if (debug > 0) //DEBUG length data in ROM data
+        {
+            VRAM[0].data = b1;
+            VRAM[1].data = g1;
+            VRAM[2].data = r1;
+            VRAM[3].data = b2;
+            VRAM[4].data = len;
+        }
+
+        float4 romBytes = 0;
+        
+        if (debug == 1)
+        {
+            romBytes = ROM.Load(int3(2, 0, 0));
+            b1 = (uint)round(romBytes.b * 255.0);
+            g1 = (uint)round(romBytes.g * 255.0);
+            r1 = (uint)round(romBytes.r * 255.0);
+            RAM[0].data = b1;
+            RAM[1].data = g1;
+            RAM[2].data = r1;
+        }
+        else if (debug == 2)
+        {
+            len = 2;
+            int iRAM = 0;
+            int x, y;
+            x = (2 + iRAM) % width;
+            y = (2 + iRAM) / width;
+            romBytes = ROM.Load(int3(x, y, 0));
+
+            if (iRAM + 0 < len) RAM[iRAM].data = (uint)round(romBytes.b * 255.0);
+            if (iRAM + 1 < len) RAM[iRAM + 1].data = (uint)round(romBytes.g * 255.0);
+            if (iRAM + 2 < len) RAM[iRAM + 2].data = (uint)round(romBytes.r * 255.0);
+        }
+
+        int iRAM = 0;
+        while (iRAM < len)
+        {
+            int romSect = iRAM;
+            int x, y;
+            x = (2 + iRAM) % width;
+            y = (2 + iRAM) / width;
+            romBytes = ROM.Load(int3(x, y, 0));
+
+            if (romSect + 0 < len)
+            {
+                RAM[iRAM].data = (uint)round(romBytes.b * 255.0);
+                iRAM++;
+            }
+            if (romSect + 1 < len)
+            {
+                RAM[iRAM].data = (uint)round(romBytes.g * 255.0);
+                iRAM++;
+            }
+            if (romSect + 2 < len)
+            {
+                RAM[iRAM].data = (uint)round(romBytes.r * 255.0);
+                iRAM++;
+            }
+        }
+    }
+
+    uint bufLen = 0;
+
 };
 
-void Reset()
+void Reset(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThreadID)
 {
     if (!Registers[0x14].data) return;
 
     LoadCharROM();
-    LoadProgram();
+    LoadProgram(id, threadid);
     Registers[0x14].data = 0;
 };
 
@@ -177,7 +260,7 @@ void ProcessDisplayRendering(uint3 id : SV_DispatchThreadID)
     }
 };
 
-void ProcessCPU(uint3 id : SV_DispatchThreadID)
+void ProcessCPU(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThreadID)
 {
     SystemInfo targetFPS = Clocks[0];
     SystemInfo cycle = Clocks[1];
@@ -186,7 +269,7 @@ void ProcessCPU(uint3 id : SV_DispatchThreadID)
     float elapsed = SystemTime - oldSystemTime.data;
 
     if (id.x == 0 && id.y == 0) {
-        Reset();
+        Reset(id, threadid);
         HandleInput();
 
         //full frame render counter
@@ -213,7 +296,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint threadIndex : SV_GroupIndex, ui
 {
     if (threadid.z == 0)
     {
-        ProcessCPU(id);
+        ProcessCPU(id, threadid);
     }
     else if (threadid.z == 1)
     {

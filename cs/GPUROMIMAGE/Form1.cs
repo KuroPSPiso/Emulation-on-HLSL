@@ -99,7 +99,7 @@ namespace GPUROMIMAGE
             if (xcc > 0)
             {
                 //res-px/res (invert)
-                imgData.SetPixel(px % resolution, resolution - 1 - px / resolution, Color.FromArgb(0xFF, colorChannel[0], colorChannel[1], colorChannel[2]));
+                imgData.SetPixel(px % resolution, resolution - 1 - px / resolution, Color.FromArgb(0xFF, colorChannel[2], colorChannel[1], colorChannel[0]));
                 colorChannel = new int[]{
                     0xFF, 0x00, 0x00, 0x00
                 };

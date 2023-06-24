@@ -7,9 +7,10 @@ public class ComputeTest : MonoBehaviour
 {
     public ComputeShader computeShader;
     public RenderTexture renderTexture;
+    private RenderTexture ROMData;
 
     //TOOD: remove TEMP
-    public Texture2D ROMData;
+    public Texture2D ROMDataTex;
 
     public int trueResolutionX = 256, trueResolutionY = 256;
     public int resolutionX = 256, resolutionY = 256;
@@ -20,6 +21,7 @@ public class ComputeTest : MonoBehaviour
     public int FixedFPS = 5;
     public bool FPSEnable = false;
     public bool IsDebug = false;
+    public bool IsDebug_ROMLoad = false;
 
     private uint inputValue;
 
@@ -42,6 +44,7 @@ public class ComputeTest : MonoBehaviour
     private SystemRam[] vram;
     private SystemRam[] stack;
     private SystemRegister[] registers;
+
 
     //max 30min per frame
     private long SystemTime { get
@@ -66,6 +69,19 @@ public class ComputeTest : MonoBehaviour
             this.Reset();
         }
 
+        if(this.ROMData == null)
+        {
+            int width = this.ROMDataTex.width;
+            int height = this.ROMDataTex.height;
+            this.ROMData = new RenderTexture(width, height, 16);
+            this.ROMData.enableRandomWrite = true;
+            this.ROMData.height = this.ROMDataTex.height;
+            this.ROMData.format = RenderTextureFormat.ARGB32;
+            //this.ROMData.format = (RenderTextureFormat)this.ROMDataTex.format;
+            this.ROMData.Create();
+            Graphics.Blit(this.ROMDataTex, this.ROMData);
+        }
+
         this.computeShader.SetTexture(0, "ROM", this.ROMData);
         this.computeShader.SetFloat("Cycle", this.Cycle);
         this.computeShader.SetTexture(0, "Result", this.renderTexture);
@@ -77,8 +93,9 @@ public class ComputeTest : MonoBehaviour
         this.computeShader.SetFloat("FixedFPS", this.FixedFPS);
 
         this.computeShader.Dispatch(0, this.renderTexture.width / 8, this.renderTexture.height, 1);
-        
-        Graphics.Blit(this.renderTexture, destination);
+
+        if(this.IsDebug_ROMLoad) Graphics.Blit(this.ROMData, destination);
+        else Graphics.Blit(this.renderTexture, destination);
     }
 
     [ContextMenu("Reset")]
@@ -151,23 +168,64 @@ public class ComputeTest : MonoBehaviour
         if(this.IsDebug)
         {
             this.ClearLog();
-            if(this.ROMData != null)
+            int length = 0;
+            if (this.ROMData != null)
             {
-                int length = 0;
-                Color clrLength = this.ROMData.GetPixel(1, 0);
-                Color clrLength2 = this.ROMData.GetPixel(0, 0);
+                Texture2D linearTex = new Texture2D(this.ROMData.width, this.ROMData.height, TextureFormat.RGBA32, 0, true);
+
+                Color clrLength = this.ROMDataTex.GetPixel(1, 0);
+                Color clrLength2 = this.ROMDataTex.GetPixel(0, 0);
                 
                 int b1, g1, r1, b2;
 
                 //little-endian size
-                length += (b1 = (int)((clrLength.b * 100) * 256)) / 100;
-                length += (g1 = (int)((clrLength.g * 100) * 256)) / 100 << 8;
-                length += (r1 = (int)((clrLength.r * 100) * 256)) / 100 << 16;
-                length += (b2 = (int)((clrLength2.b * 100) * 256)) / 100 << 24;
-                Debug.Log($"ROM size:{b1 / 100},{g1 / 100},{r1 / 100},{b2 / 100} ||" + length);
+                length += (b1 = (int)Mathf.Round(clrLength.b * 255.0f)) << 0;
+                length += (g1 = (int)Mathf.Round(clrLength.g * 255.0f)) << 8;
+                length += (r1 = (int)Mathf.Round(clrLength.r * 255.0f)) << 16;
+                length += (b2 = (int)Mathf.Round(clrLength2.b * 255.0f)) << 24;
+                Debug.Log($"ROM size:{b1},{g1},{r1},{b2} || {length} || {clrLength.r + clrLength.g + clrLength.b} : {clrLength2.r + clrLength2.g + clrLength2.b}");
+
+                if(IsDebug_ROMLoad)
+                {
+                    Texture2D rominVrom = new Texture2D(this.ROMData.width, this.ROMData.height, this.ROMDataTex.format, this.ROMDataTex.mipmapCount, true);
+                    RenderTexture.active = this.ROMData;
+                    rominVrom.ReadPixels(new Rect(0, 0, this.ROMData.width, this.ROMData.height), 0, 0, false);
+
+                    clrLength = rominVrom.GetPixel(1, 0);
+                    clrLength2 = rominVrom.GetPixel(0, 0);
+
+                    length = 0;
+                    length += (b1 = (int)Mathf.Round(clrLength.b * 255.0f)) << 0;
+                    length += (g1 = (int)Mathf.Round(clrLength.g * 255.0f)) << 8;
+                    length += (r1 = (int)Mathf.Round(clrLength.r * 255.0f)) << 16;
+                    length += (b2 = (int)Mathf.Round(clrLength2.b * 255.0f)) << 24;
+                    Debug.Log($"SS ROM size:{b1},{g1},{r1},{b2} || {length} || {clrLength.r + clrLength.g + clrLength.b} : {clrLength2.r + clrLength2.g + clrLength2.b}");
+                }
             }
-            this.vramBuffer.GetData(vram);
-            Debug.Log($"width{vram[0].data}");
+            if (this.vramBuffer != null)
+            {
+                this.vramBuffer.GetData(vram);
+                Debug.Log($"Loaded ROM size:{vram[0].data},{vram[1].data},{vram[2].data},{vram[3].data} || {vram[4].data} ||");
+
+
+                this.ramBuffer.GetData(this.ram);
+                Color clrLength = this.ROMDataTex.GetPixel(2, 0);
+                int b, g, r;
+                b = (int)Mathf.Round(clrLength.b * 255.0f);
+                g = (int)Mathf.Round(clrLength.g * 255.0f);
+                r = (int)Mathf.Round(clrLength.r * 255.0f);
+                Debug.Log($"first data sect: img {b},{g},{r} : gpu {this.ram[0].data},{this.ram[1].data},{this.ram[2].data}");
+
+
+                if (length > 2)
+                {
+                    clrLength = this.ROMDataTex.GetPixel(4, 4);
+                    b = (int)Mathf.Round(clrLength.b * 255.0f);
+                    g = (int)Mathf.Round(clrLength.g * 255.0f);
+                    r = (int)Mathf.Round(clrLength.r * 255.0f);
+                    Debug.Log($"last data sect: img {b},{g},{r} : gpu {this.ram[390].data},{this.ram[391].data},{this.ram[392].data}");
+                }
+            }
         }
 
         if (this.clocksBuffer != null && IsDebug)
@@ -203,6 +261,7 @@ public class ComputeTest : MonoBehaviour
     {
         if (this.clocksBuffer != null) clocksBuffer.Dispose();
         if (this.ramBuffer != null) ramBuffer.Dispose();
+        if (this.vramBuffer != null) vramBuffer.Dispose();
         if (this.stackBuffer != null) stackBuffer.Dispose();
         if (this.registersBuffer != null) registersBuffer.Dispose();
     }
@@ -211,6 +270,7 @@ public class ComputeTest : MonoBehaviour
     {
         if (this.clocksBuffer != null) clocksBuffer.Dispose();
         if (this.ramBuffer != null) ramBuffer.Dispose();
+        if (this.vramBuffer != null) vramBuffer.Dispose();
         if (this.stackBuffer != null) stackBuffer.Dispose();
         if (this.registersBuffer != null) registersBuffer.Dispose();
     }

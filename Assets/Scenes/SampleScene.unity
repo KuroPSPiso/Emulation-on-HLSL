@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.44657898, g: 0.4964133, b: 0.5748178, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -316,7 +316,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: d55e86c3314926844aaf429d1e4b421d, type: 3}
   renderTexture: {fileID: 0}
-  ROMData: {fileID: 2800000, guid: b52774d95c3eca94ab9fd4b13033643b, type: 3}
+  ROMDataTex: {fileID: 2800000, guid: b52774d95c3eca94ab9fd4b13033643b, type: 3}
   trueResolutionX: 256
   trueResolutionY: 256
   resolutionX: 256
@@ -327,3 +327,4 @@ MonoBehaviour:
   FixedFPS: 7
   FPSEnable: 1
   IsDebug: 1
+  IsDebug_ROMLoad: 0
