@@ -145,29 +145,39 @@ void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThread
         }
 
         int iRAM = 0;
+        int colorByte = 0;
         while (iRAM < len)
         {
             int romSect = iRAM;
             int x, y;
-            x = (2 + iRAM) % width;
-            y = (2 + iRAM) / width;
+            x = (2 + colorByte) % width;
+            y = (2 + colorByte) / width;
             romBytes = ROM.Load(int3(x, y, 0));
 
             if (romSect + 0 < len)
             {
-                RAM[iRAM].data = (uint)round(romBytes.b * 255.0);
+                RAM[401 + romSect + 0].data = x;
+                RAM[801 + romSect + 0].data = y;
+                RAM[romSect + 0].data = (uint)round(romBytes.b * 255.0);
                 iRAM++;
             }
             if (romSect + 1 < len)
             {
-                RAM[iRAM].data = (uint)round(romBytes.g * 255.0);
+                RAM[401 + romSect + 1].data = x;
+                RAM[801 + romSect + 1].data = y;
+                RAM[romSect + 1].data = (uint)round(romBytes.g * 255.0);
                 iRAM++;
             }
             if (romSect + 2 < len)
             {
-                RAM[iRAM].data = (uint)round(romBytes.r * 255.0);
+                RAM[401 + romSect + 2].data = x;
+                RAM[801 + romSect + 2].data = y;
+                RAM[romSect + 2].data = (uint)round(romBytes.r * 255.0);
                 iRAM++;
             }
+
+            RAM[400].data = iRAM;
+            colorByte++;
         }
     }
 
