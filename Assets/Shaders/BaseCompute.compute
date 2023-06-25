@@ -1,5 +1,8 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
+#define PC_REG 0x10
+#define HALT_REG 0x12
+#define RESET_REG 0x14
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -186,6 +189,25 @@ void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThread
 
 };
 
+void ExecuteInstruction(uint opCode) {
+    Registers[PC_REG].data += 2;
+
+
+}
+
+void Cycle()
+{
+    if (!Registers[HALT_REG].data) //HALTED
+    {
+        uint pc = Registers[PC_REG].data;
+        uint opCode = ((RAM[pc].data << 8) | (RAM[pc + 1].data));
+        ExecuteInstruction(opCode);
+
+        //timers (sound scync)
+        //playsound
+    }
+}
+
 void Reset(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThreadID)
 {
     if (!Registers[0x14].data) return;
@@ -289,6 +311,8 @@ void ProcessCPU(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThreadI
 
         //check fps
         if (elapsed > targetFPS.data) {
+            Cycle(id, threadid);
+
             Clocks[5 + Clocks[4].data].data = elapsed;
             Clocks[4].data++;
             if (Clocks[4].data > 3) Clocks[4].data = 0;
