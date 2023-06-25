@@ -35,6 +35,8 @@ float FixedFPS;
 bool FPSEnable;
 uint INPUT;
 
+static const uint LoadLocation = 0x200;
+
 //custom font numeric sprites for debug/fps
 static const int1 CHARSET[150] =
 {
@@ -88,7 +90,6 @@ void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThread
 
     uint len = 0;
 
-    
     //get len
     if (width + height > 2) {
         uint b1, g1, r1, b2;
@@ -107,7 +108,7 @@ void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThread
         len += r1 << 16;
         len += b2 << 24;
 
-        uint debug = 1;
+        uint debug = 0;
 
         if (debug > 0) //DEBUG length data in ROM data
         {
@@ -156,28 +157,28 @@ void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThread
 
             if (romSect + 0 < len)
             {
-                RAM[401 + romSect + 0].data = x;
-                RAM[801 + romSect + 0].data = y;
-                RAM[romSect + 0].data = (uint)round(romBytes.b * 255.0);
+                //RAM[401 + romSect + 0].data = x;
+                //RAM[801 + romSect + 0].data = y;
+                RAM[LoadLocation + romSect + 0].data = (uint)round(romBytes.b * 255.0);
                 iRAM++;
             }
             if (romSect + 1 < len)
             {
-                RAM[401 + romSect + 1].data = x;
-                RAM[801 + romSect + 1].data = y;
-                RAM[romSect + 1].data = (uint)round(romBytes.g * 255.0);
+                //RAM[401 + romSect + 1].data = x;
+                //RAM[801 + romSect + 1].data = y;
+                RAM[LoadLocation + romSect + 1].data = (uint)round(romBytes.g * 255.0);
                 iRAM++;
             }
             if (romSect + 2 < len)
             {
-                RAM[401 + romSect + 2].data = x;
-                RAM[801 + romSect + 2].data = y;
-                RAM[romSect + 2].data = (uint)round(romBytes.r * 255.0);
+                //RAM[401 + romSect + 2].data = x;
+                //RAM[801 + romSect + 2].data = y;
+                RAM[LoadLocation + romSect + 2].data = (uint)round(romBytes.r * 255.0);
                 iRAM++;
             }
 
-            RAM[400].data = iRAM;
-            colorByte++;
+            //RAM[400].data = iRAM;
+            colorByte++; //could be replaced with iRAM / 3 (?), keep in for stability.
         }
     }
 

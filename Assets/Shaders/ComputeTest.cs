@@ -214,7 +214,7 @@ public class ComputeTest : MonoBehaviour
                 b = (int)Mathf.Round(clrLength.b * 255.0f);
                 g = (int)Mathf.Round(clrLength.g * 255.0f);
                 r = (int)Mathf.Round(clrLength.r * 255.0f);
-                Debug.Log($"first data sect: img {b},{g},{r} : gpu {this.ram[0].data},{this.ram[1].data},{this.ram[2].data}");
+                Debug.Log($"first data sect: img {b},{g},{r} : gpu {this.ram[0x200 + 0].data},{this.ram[0x200 + 1].data},{this.ram[0x200 + 2].data}");
 
 
                 if (length > 2)
@@ -223,7 +223,7 @@ public class ComputeTest : MonoBehaviour
                     b = (int)Mathf.Round(clrLength.b * 255.0f);
                     g = (int)Mathf.Round(clrLength.g * 255.0f);
                     r = (int)Mathf.Round(clrLength.r * 255.0f);
-                    Debug.Log($"last data sect: img {b},{g},{r} : gpu {this.ram[390].data},{this.ram[391].data},{this.ram[392].data}");
+                    Debug.Log($"last data sect: img {b},{g},{r} : gpu {this.ram[0x200 + 390].data},{this.ram[0x200 + 391].data},{this.ram[0x200 + 392].data}");
                 }
             }
         }
