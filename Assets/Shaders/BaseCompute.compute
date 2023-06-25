@@ -311,7 +311,7 @@ void ProcessCPU(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThreadI
 
         //check fps
         if (elapsed > targetFPS.data) {
-            Cycle(id, threadid);
+            Cycle();
 
             Clocks[5 + Clocks[4].data].data = elapsed;
             Clocks[4].data++;
