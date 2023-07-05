@@ -132,10 +132,11 @@ public class ComputeTest : MonoBehaviour
 
     private void GenerateRegisters()
     {
-        this.registers = new SystemRegister[0x15]; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = SPEED
-        this.registers[0x10].data = 0x200;
-        this.registers[0x13].data = 10;
-        this.registers[0x14].data = 1;
+        this.registers = new SystemRegister[0x16]; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = SPEED, 0x14 = RESET, 0x15 = CURR_OPCODE
+        this.registers[0x10].data = 0x200; //PC
+        this.registers[0x13].data = 10; //speed
+        this.registers[0x14].data = 1; //reset
+        this.registers[0x15].data = 0xFF; //opcode
 
         int uiDataSize = sizeof(uint);
         int dataSize = uiDataSize;
