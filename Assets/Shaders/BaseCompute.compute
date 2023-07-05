@@ -206,7 +206,7 @@ void ShowFPS(float val, float2 xy)
 
     val = val + 0.01; //float rounding correction
     int1 hundreds = 0, tens = 0, os = 0;
-    Registers[0x13].data = val & 0x00FF; //RAND
+    Registers[0x13].data = (uint)val & 0x00FF; //RAND
     if (val > 100)
     {
         hundreds = (val % 1000) / 100;
