@@ -34,6 +34,7 @@ public class ComputeTest : MonoBehaviour
     {
         public uint data;
     }
+
     struct SystemRegister
     {
         public uint data;
@@ -136,7 +137,7 @@ public class ComputeTest : MonoBehaviour
         this.registers[0x10].data = 0x200; //PC
         this.registers[0x13].data = 10; //speed
         this.registers[0x14].data = 1; //reset
-        this.registers[0x15].data = 0xFF; //opcode
+        this.registers[0x15].data = 0x00; //stack pointer
 
         int uiDataSize = sizeof(uint);
         int dataSize = uiDataSize;

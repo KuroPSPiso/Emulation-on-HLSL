@@ -174,19 +174,17 @@ void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThread
 
 };
 
-void ExecuteInstruction(uint opCode) {
-    Registers[PC_REG].data += 2;
-
-
-}
-
 void Cycle()
 {
     if (!Registers[HALT_REG].data) //HALTED
     {
         uint pc = Registers[PC_REG].data;
         uint opCode = ((RAM[pc].data << 8) | (RAM[pc + 1].data));
-        ExecuteInstruction(opCode);
+        pc += 2;
+        pc += ExecuteInstruction(opCode);
+
+        Registers[PC_REG].data = pc;
+        Registers[PC_REG].data &= PC_LIMIT;
 
         //timers (sound scync)
         //playsound
@@ -208,7 +206,7 @@ void ShowFPS(float val, float2 xy)
 
     val = val + 0.01; //float rounding correction
     int1 hundreds = 0, tens = 0, os = 0;
-
+    Registers[0x13].data = val & 0x00FF; //RAND
     if (val > 100)
     {
         hundreds = (val % 1000) / 100;
