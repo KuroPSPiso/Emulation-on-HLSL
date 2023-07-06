@@ -326,5 +326,5 @@ MonoBehaviour:
   RAMCapacity: 4096
   FixedFPS: 7
   FPSEnable: 1
-  IsDebug: 1
+  IsDebug: 0
   IsDebug_ROMLoad: 0

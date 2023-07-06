@@ -11,13 +11,6 @@ RWTexture2D<float4> ROM;
 float ResolutionX;
 float ResolutionY;
 
-struct SystemInfo
-{
-    float data;
-};
-
-RWStructuredBuffer<SystemInfo> Clocks; //TARGETFPS, CYCLE, OLDSYSTIME, FRAMECOUNTER
-
 float SystemTime;
 float FixedFPS;
 bool FPSEnable;
@@ -267,7 +260,8 @@ void ProcessDisplayRendering(uint3 id : SV_DispatchThreadID)
 
     if (FPSEnable) {
         float fpsData = 0;
-        if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data) / 4); //fps
+        if (FixedFPS >= 10 && FixedFPS <= 10 + 0x15) fpsData = Registers[FixedFPS - 10].data; //register data
+        else if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data) / 4); //fps
         else if (FixedFPS == 6) fpsData = elapsed; //elapsed
         else if (FixedFPS == 5) fpsData = SystemTime - oldSystemTime.data; //elapsed
         else if (FixedFPS == 4) fpsData = SystemTime; //sys ms

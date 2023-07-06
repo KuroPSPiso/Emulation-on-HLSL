@@ -18,7 +18,7 @@ public class ComputeTest : MonoBehaviour
     public int Cycle = 0;
     public int RAMCapacity = 4096;
 
-    public int FixedFPS = 5;
+    public int FixedFPS = 7;
     public bool FPSEnable = false;
     public bool IsDebug = false;
     public bool IsDebug_ROMLoad = false;

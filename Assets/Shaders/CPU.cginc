@@ -20,6 +20,12 @@ struct SystemRam
     uint data;
 };
 
+struct SystemInfo
+{
+    float data;
+};
+
+RWStructuredBuffer<SystemInfo> Clocks; //TARGETFPS, CYCLE, OLDSYSTIME, FRAMECOUNTER
 RWStructuredBuffer<Register> Registers; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = RAND, 0x14 = RESET, 0x15 = SP
 RWStructuredBuffer<SystemRam> RAM; //0x00 - 0xFFF
 RWStructuredBuffer<SystemRam> VRAM; //0x00 - ?
@@ -189,7 +195,7 @@ int FuncJP_PC(uint opCode) //B
 
 int FuncRAND(uint opCode) //C
 {
-    Registers[X(opCode)].data = Registers[0x13].data & (opCode & 0x00FF);
+    Registers[X(opCode)].data = (uint)Clocks[0x04].data & (opCode & 0x00FF);
     Registers[X(opCode)].data &= REG_LIMIT;
     return 0;
 };
