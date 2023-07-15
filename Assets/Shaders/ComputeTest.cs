@@ -22,6 +22,7 @@ public class ComputeTest : MonoBehaviour
     public bool FPSEnable = false;
     public bool IsDebug = false;
     public bool IsDebug_ROMLoad = false;
+    public bool IsDebug_PC = false;
 
     private uint inputValue;
 
@@ -63,7 +64,7 @@ public class ComputeTest : MonoBehaviour
     {
         if (this.renderTexture == null)
         {
-            this.renderTexture = new RenderTexture(256, 256, 24);
+            this.renderTexture = new RenderTexture(resolutionX, resolutionY, 24);
             this.renderTexture.enableRandomWrite = true;
             this.renderTexture.Create();
 
@@ -133,7 +134,7 @@ public class ComputeTest : MonoBehaviour
 
     private void GenerateRegisters()
     {
-        this.registers = new SystemRegister[0x16]; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = SPEED, 0x14 = RESET, 0x15 = CURR_OPCODE
+        this.registers = new SystemRegister[0xFF]; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = SPEED, 0x14 = RESET, 0x15 = CURR_OPCODE
         this.registers[0x10].data = 0x200; //PC
         this.registers[0x13].data = 10; //speed
         this.registers[0x14].data = 1; //reset
@@ -164,6 +165,8 @@ public class ComputeTest : MonoBehaviour
         this.clocksBuffer.SetData(this.clocks);
         this.computeShader.SetBuffer(0, "Clocks", this.clocksBuffer);
     }
+
+    uint[] PCWhenNotO = new uint[4];
 
     private void Update()
     {
@@ -227,6 +230,19 @@ public class ComputeTest : MonoBehaviour
                     r = (int)Mathf.Round(clrLength.r * 255.0f);
                     Debug.Log($"last data sect: img {b},{g},{r} : gpu {this.ram[0x200 + 390].data},{this.ram[0x200 + 391].data},{this.ram[0x200 + 392].data}");
                 }
+            }
+            if(IsDebug_PC)
+            {
+                this.registersBuffer.GetData(registers);
+                if(registers[250].data != 0)
+                {
+                    PCWhenNotO[0] = registers[250].data;
+                    PCWhenNotO[1] = registers[251].data;
+                    PCWhenNotO[2] = registers[252].data;
+                    PCWhenNotO[3] = registers[253].data;
+                }
+
+                Debug.Log($"PC: {PCWhenNotO[0]:X}{PCWhenNotO[1]:X}{PCWhenNotO[2]:X}{PCWhenNotO[3]:X}");
             }
         }
 

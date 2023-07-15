@@ -1,8 +1,11 @@
+#include "GPU.cginc"
+
 #define PC_REG 0x10
 #define I_REG 0x11
 #define HALT_REG 0x12
 #define RESET_REG 0x14
 #define SP_REG 0x15
+#define OP_REG 0xFF
 #define X(opcode) (opcode & 0x0F00) >> 8
 #define Y(opcode) (opcode & 0x00F0) >> 4
 #define REG_LIMIT 0xFF
@@ -15,11 +18,6 @@ struct Register
     uint data;
 };
 
-struct SystemRam
-{
-    uint data;
-};
-
 struct SystemInfo
 {
     float data;
@@ -28,7 +26,6 @@ struct SystemInfo
 RWStructuredBuffer<SystemInfo> Clocks; //TARGETFPS, CYCLE, OLDSYSTIME, FRAMECOUNTER
 RWStructuredBuffer<Register> Registers; //0x00-0x0F regular registers, 0x10 = PC, 0x11 = INDEXER, 0x12 = HALT, 0x13 = RAND, 0x14 = RESET, 0x15 = SP
 RWStructuredBuffer<SystemRam> RAM; //0x00 - 0xFFF
-RWStructuredBuffer<SystemRam> VRAM; //0x00 - ?
 RWStructuredBuffer<SystemRam> STACK; //could be part of RAM above 4096 '\_(-_- )_/`
 
 //no instructions
@@ -68,30 +65,30 @@ int FuncJP(uint opCode) //1
 
 int FuncCALL(uint opCode) //2
 {
-    Registers[SP_REG].data += 1;
-    STACK[Registers[SP_REG].data].data = Registers[PC_REG].data;
-    Registers[PC_REG].data = opCode & 0x0FFF;
+    Registers[SP_REG].data += 1; //up STACK Counter
+    STACK[Registers[SP_REG].data].data = Registers[PC_REG].data; //store PC in STACK
+    Registers[PC_REG].data = opCode & 0x0FFF; //set NNN in PC
     return 0;
 };
 
 //skip if equal Reg[X] == NN
 int FuncSE_VX_NN(uint opCode) //3
 {
-    if(Registers[X(opCode)].data == opCode & 0x00FF) return 2;
+    if(Registers[X(opCode)].data == opCode & 0x00FF) return 2; //up PC
     return 0;
 };
 
 //skip if not equal Reg[X] == NN
 int FuncSNE_VX_NN(uint opCode) //4
 {
-    if (Registers[X(opCode)].data != opCode & 0x00FF) return 2;
+    if (Registers[X(opCode)].data != opCode & 0x00FF) return 2; //up PC
     return 0;
 };
 
 //skip if equal Reg[X] == Reg[Y]
 int FuncSE_VX_VY(uint opCode) //5
 {
-    if (Registers[X(opCode)].data == Registers[Y(opCode)].data) return 2;
+    if (Registers[X(opCode)].data == Registers[Y(opCode)].data) return 2; //up PC
     return 0;
 };
 
@@ -104,12 +101,13 @@ int FuncLD_VX_NN(uint opCode) //6
 int FuncADD_VX_NN(uint opCode) //7
 {
     Registers[X(opCode)].data = Registers[X(opCode)].data + (opCode & 0x00FF);
-    Registers[X(opCode)].data &= REG_LIMIT;
+    Registers[X(opCode)].data &= REG_LIMIT; //rollover limiter (not present)
     return 0;
 };
 
 int FuncALU_VX_VY(uint opCode) //8
 {
+    //0x000N ALU functions
     [branch] switch (opCode & 0x000F) {
     //LD Reg[X], Reg[Y]
     case 0x0:
@@ -133,8 +131,8 @@ int FuncALU_VX_VY(uint opCode) //8
         //is carry?
         Registers[0xF].data = 0;
         if (Registers[X(opCode)].data > REG_LIMIT) {
-            Registers[0xF].data = 1;
-            Registers[X(opCode)].data &= REG_LIMIT;
+            Registers[0xF].data = 1; //set carry flag
+            Registers[X(opCode)].data &= REG_LIMIT; //rollover limiter (not present)
         }
         return 0;
     //SUB Reg[X], Reg[Y]
@@ -143,7 +141,7 @@ int FuncALU_VX_VY(uint opCode) //8
         Registers[0xF].data = 0;
         if (Registers[X(opCode)].data > Registers[Y(opCode)].data)
         {
-            Registers[0xF].data = 1;
+            Registers[0xF].data = 1; //set carry flag
         }
 
         Registers[X(opCode)].data -= Registers[Y(opCode)].data;
@@ -151,7 +149,7 @@ int FuncALU_VX_VY(uint opCode) //8
         return 0;
     //SHR Reg[X], shift right and store carry
     case 0x6:
-        Registers[0xF].data = Registers[X(opCode)].data & 0x01;
+        Registers[0xF].data = Registers[X(opCode)].data & 0x01; //set carry flag
         Registers[X(opCode)].data >>= 1;
         return 0;
     //SUBN Reg[X], Reg[Y]
@@ -160,14 +158,14 @@ int FuncALU_VX_VY(uint opCode) //8
         Registers[0xF].data = 0;
         if (Registers[Y(opCode)].data > Registers[X(opCode)].data)
         {
-            Registers[0xF].data = 1;
+            Registers[0xF].data = 1; //set carry flag
         }
 
         Registers[X(opCode)].data = Registers[Y(opCode)].data - Registers[X(opCode)].data;
         return 0;
     //SHL Reg[X], shift left and store carry
     case 0xE:
-        Registers[0xF].data = (Registers[X(opCode)].data >> 7) & 0x01;
+        Registers[0xF].data = (Registers[X(opCode)].data >> 7) & 0x01; //set carry flag
         Registers[X(opCode)].data <<= 1;
         return 0;
     }
@@ -189,19 +187,39 @@ int FuncIREG(uint opCode) //A
 int FuncJP_PC(uint opCode) //B
 {
     Registers[PC_REG].data = Registers[0].data + (opCode & 0x0FFF);
-    Registers[PC_REG].data &= PC_LIMIT;
+    Registers[PC_REG].data &= PC_LIMIT; //rollover limiter (not present)
     return 0;
 };
 
 int FuncRAND(uint opCode) //C
 {
     Registers[X(opCode)].data = (uint)Clocks[0x04].data & (opCode & 0x00FF);
-    Registers[X(opCode)].data &= REG_LIMIT;
+    Registers[X(opCode)].data &= REG_LIMIT;  //rollover limiter (not present)
     return 0;
 };
 
 int FuncDISPLAY(uint opCode) //D
 {
+    //store n from ADDY in I
+    uint pixelsX = 8;
+    uint pixelsY = opCode & 0xF; //0x000N nibble
+    Registers[0xF].data = 0; //reset collision flag
+
+    for (uint row = 0; row < pixelsY; row++)
+    {
+        uint sprite = RAM[Registers[I_REG].data + row].data;
+
+        for (uint column = 0; column < pixelsX; column++)
+        {
+            if ((sprite & 0x80) > 0x00)
+            {
+                Registers[0xF].data = SetPixel(Registers[X(opCode)].data + column, Registers[X(opCode)].data + row); //set flag if pixel is erased
+            }
+
+            sprite <<= 1;
+        }
+    }
+
     return 0;
 };
 
@@ -217,6 +235,10 @@ int FuncTIMERS(uint opCode) //F
 
 int ExecuteInstruction(uint opCode)
 {
+    //TODO: log operations to a looping array for debugging purposes
+
+    Registers[OP_REG].data = opCode;
+
     Registers[PC_REG].data += 2;
 
     //opcode (0x[0-F]??? > 0x[0-F])

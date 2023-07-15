@@ -8,15 +8,12 @@
 RWTexture2D<float4> Result;
 RWTexture2D<float4> ROM;
 
-float ResolutionX;
-float ResolutionY;
-
 float SystemTime;
 float FixedFPS;
 bool FPSEnable;
 uint INPUT;
 
-static const uint LoadLocation = 0x200;
+static const uint LoadLocation = 0x200; //offset position
 
 //custom font numeric sprites for debug/fps
 static const int1 CHARSET[150] =
@@ -171,13 +168,10 @@ void Cycle()
 {
     if (!Registers[HALT_REG].data) //HALTED
     {
-        uint pc = Registers[PC_REG].data;
-        uint opCode = ((RAM[pc].data << 8) | (RAM[pc + 1].data));
-        pc += 2;
-        pc += ExecuteInstruction(opCode);
+        uint opCode = RAM[Registers[PC_REG].data].data << 8 | RAM[Registers[PC_REG].data + 1].data;
+        Registers[PC_REG].data += ExecuteInstruction(opCode);
 
-        Registers[PC_REG].data = pc;
-        Registers[PC_REG].data &= PC_LIMIT;
+        if (Registers[PC_REG].data > PC_LIMIT) Registers[PC_REG].data -= PC_LIMIT;
 
         //timers (sound scync)
         //playsound
@@ -256,11 +250,25 @@ void ProcessDisplayRendering(uint3 id : SV_DispatchThreadID)
     float x = (id.x / ResolutionX) + (gpuPasses.data / 1000);
     float y = id.y / ResolutionY;
 
-    Result[id.xy] = float4(x, y, 0.0, 0.0);
+    //debug render running speed
+    uint debugRendering = 0;
+    if (debugRendering == 1)
+        if(id.x > (ResolutionX / 4) && id.x < (ResolutionX / 4 * 3)) SetPixel((uint) round(id.x), (uint) round(id.y));
+    
+    //render actual pixel data
+    float pixelValue = GetPixel(id.x, id.y, ResolutionX);
+    Result[id.xy] = pixelValue;
+
+    //debug
+    if(debugRendering == 2) Result[id.xy] = float4(x, y, 0.0, 0.0);
 
     if (FPSEnable) {
         float fpsData = 0;
         if (FixedFPS >= 10 && FixedFPS <= 10 + 0x15) fpsData = Registers[FixedFPS - 10].data; //register data
+        else if (FixedFPS == 250) fpsData = (Registers[OP_REG].data >> 12) & 0x000F; //get opcode
+        else if (FixedFPS == 251) fpsData = (Registers[OP_REG].data >> 8) & 0x000F; //get opcode
+        else if (FixedFPS == 252) fpsData = (Registers[OP_REG].data >> 4) & 0x000F; //get opcode
+        else if (FixedFPS == 253) fpsData = Registers[OP_REG].data & 0x000F; //get opcode
         else if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data) / 4); //fps
         else if (FixedFPS == 6) fpsData = elapsed; //elapsed
         else if (FixedFPS == 5) fpsData = SystemTime - oldSystemTime.data; //elapsed
