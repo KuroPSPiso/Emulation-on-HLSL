@@ -1,4 +1,5 @@
 #include "GPU.cginc"
+#include "DEBUGGER.cginc"
 
 #define PC_REG 0x10
 #define I_REG 0x11
@@ -6,6 +7,7 @@
 #define RESET_REG 0x14
 #define SP_REG 0x15
 #define OP_REG 0xFF
+#define FUNC_REG 0xFE
 #define X(opcode) (opcode & 0x0F00) >> 8
 #define Y(opcode) (opcode & 0x00F0) >> 4
 #define REG_LIMIT 0xFF
@@ -59,7 +61,9 @@ int FuncSystem(uint opCode) //0
 
 int FuncJP(uint opCode) //1
 {
+    LogStatus(0xFFFF, opCode, 0xFA00, Registers[PC_REG].data);
     Registers[PC_REG].data = opCode & 0x0FFF;
+    LogStatus(0xFFFF, opCode, 0xFA01, Registers[PC_REG].data);
     return 0;
 };
 
@@ -242,38 +246,86 @@ int ExecuteInstruction(uint opCode)
     Registers[PC_REG].data += 2;
 
     //opcode (0x[0-F]??? > 0x[0-F])
-    [call] switch (opCode >> 12) {
+    [branch] switch (opCode >> 12) {
     case 0x0:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x0;
+#endif
         return FuncSystem(opCode);
     case 0x1:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x1;
+#endif
         return FuncJP(opCode);
     case 0x2:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x2;
+#endif
         return FuncCALL(opCode);
     case 0x3:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x3;
+#endif
         return FuncSE_VX_NN(opCode);
     case 0x4:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x4;
+#endif
         return FuncSNE_VX_NN(opCode);
     case 0x5:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x5;
+#endif
         return FuncSE_VX_VY(opCode);
     case 0x6:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x6;
+#endif
         return FuncLD_VX_NN(opCode);
     case 0x7:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x7;
+#endif
         return FuncADD_VX_NN(opCode);
     case 0x8:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x8;
+#endif
         return FuncALU_VX_VY(opCode);
     case 0x9:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0x9;
+#endif
         return FuncSNE_VX_VY(opCode);
     case 0xA:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0xA;
+#endif
         return FuncIREG(opCode);
     case 0xB:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0xB;
+#endif
         return FuncJP_PC(opCode);
     case 0xC:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0xC;
+#endif
         return FuncRAND(opCode);
     case 0xD:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0xD;
+#endif
         return FuncDISPLAY(opCode);
     case 0xE:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0xE;
+#endif
         return FuncKEY(opCode);
     case 0xF:
+#if DEBUGGER == 1
+        Registers[FUNC_REG].data = 0xF;
+#endif
         return FuncTIMERS(opCode);
     }
 

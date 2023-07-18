@@ -1,5 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #include "CPU.cginc"
+#include "DEBUGGER.cginc"
 #pragma kernel CSMain
 
 
@@ -137,7 +138,7 @@ void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThread
             {
                 //RAM[401 + romSect + 0].data = x;
                 //RAM[801 + romSect + 0].data = y;
-                RAM[LoadLocation + romSect + 0].data = (uint)round(romBytes.b * 255.0);
+                RAM[LoadLocation + romSect + 0].data = (uint)round(romBytes.r * 255.0);
                 iRAM++;
             }
             if (romSect + 1 < len)
@@ -151,7 +152,7 @@ void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThread
             {
                 //RAM[401 + romSect + 2].data = x;
                 //RAM[801 + romSect + 2].data = y;
-                RAM[LoadLocation + romSect + 2].data = (uint)round(romBytes.r * 255.0);
+                RAM[LoadLocation + romSect + 2].data = (uint)round(romBytes.b * 255.0);
                 iRAM++;
             }
 
@@ -168,11 +169,25 @@ void Cycle()
 {
     if (!Registers[HALT_REG].data) //HALTED
     {
+#if DEBUGGER == 1
+        uint oldPC = Registers[PC_REG].data;
+        //LogStatus(RAM[Registers[PC_REG].data].data, RAM[Registers[PC_REG].data + 1].data, 0xFF, Registers[PC_REG].data);
+        uint opCode = RAM[Registers[PC_REG].data].data << 8 | RAM[Registers[PC_REG].data + 1].data;
+        uint ticksInInstruction = ExecuteInstruction(opCode);
+        LogStatus(oldPC, opCode, Registers[FUNC_REG].data, Registers[PC_REG].data);
+        Registers[PC_REG].data += ticksInInstruction;
+        LogStatus(oldPC, opCode & 0x0FFF, 0xFE00, Registers[PC_REG].data);
+
+        if (Registers[PC_REG].data > PC_LIMIT) Registers[PC_REG].data -= PC_LIMIT;
+        uint newPC = Registers[PC_REG].data;
+
+        LogStatus(oldPC, opCode, 0xFF00, Registers[PC_REG].data);
+#else
         uint opCode = RAM[Registers[PC_REG].data].data << 8 | RAM[Registers[PC_REG].data + 1].data;
         Registers[PC_REG].data += ExecuteInstruction(opCode);
 
         if (Registers[PC_REG].data > PC_LIMIT) Registers[PC_REG].data -= PC_LIMIT;
-
+#endif
         //timers (sound scync)
         //playsound
     }

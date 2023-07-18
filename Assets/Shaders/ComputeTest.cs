@@ -1,13 +1,17 @@
+#pragma warning disable CS0649
+
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 public class ComputeTest : MonoBehaviour
 {
     public ComputeShader computeShader;
     public RenderTexture renderTexture;
-    private RenderTexture ROMData;
+    public TMP_Text TMPDebugLogger;
 
     //TOOD: remove TEMP
     public Texture2D ROMDataTex;
@@ -18,13 +22,18 @@ public class ComputeTest : MonoBehaviour
     public int Cycle = 0;
     public int RAMCapacity = 4096;
 
+    [Header("Debug Info")]
     public int FixedFPS = 7;
     public bool FPSEnable = false;
+    public bool IsClearDebug = false;
     public bool IsDebug = false;
     public bool IsDebug_ROMLoad = false;
     public bool IsDebug_PC = false;
+    public bool HasDebugger = false;
 
     private uint inputValue;
+    private const int loggerSize = 10;
+    private RenderTexture ROMData;
 
     struct SystemInfo
     {
@@ -41,11 +50,23 @@ public class ComputeTest : MonoBehaviour
         public uint data;
     }
 
+    struct DebugLog
+    {
+        public uint sysTick; //only populate index 0
+        public uint i; //only populate index 0
+        public uint tick;
+        public uint pc;
+        public uint opCode;
+        public uint newPC;
+        public uint func;
+    };
+
     private SystemInfo[] clocks;
     private SystemRam[] ram;
     private SystemRam[] vram;
     private SystemRam[] stack;
     private SystemRegister[] registers;
+    private DebugLog[] debugLogStack;
 
 
     //max 30min per frame
@@ -59,6 +80,7 @@ public class ComputeTest : MonoBehaviour
     private ComputeBuffer vramBuffer;
     private ComputeBuffer stackBuffer;
     private ComputeBuffer registersBuffer;
+    private ComputeBuffer debugLogBuffer;
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
@@ -67,6 +89,7 @@ public class ComputeTest : MonoBehaviour
             this.renderTexture = new RenderTexture(resolutionX, resolutionY, 24);
             this.renderTexture.enableRandomWrite = true;
             this.renderTexture.Create();
+            this.renderTexture.filterMode = FilterMode.Point;
 
             this.Reset();
         }
@@ -83,6 +106,8 @@ public class ComputeTest : MonoBehaviour
             this.ROMData.Create();
             Graphics.Blit(this.ROMDataTex, this.ROMData);
         }
+
+        if (this.renderTexture == null || this.ROMData == null) return;
 
         this.computeShader.SetTexture(0, "ROM", this.ROMData);
         this.computeShader.SetFloat("Cycle", this.Cycle);
@@ -103,11 +128,56 @@ public class ComputeTest : MonoBehaviour
     [ContextMenu("Reset")]
     private void Reset()
     {
+        this.GenerateLogger();
+
         this.GenerateClocks();
 
         this.GenerateRam();
 
         this.GenerateRegisters();
+    }
+
+    private void GenerateLogger()
+    {
+
+        this.debugLogStack = new DebugLog[loggerSize];
+
+        int debugLogStackSize = sizeof(uint) * 7;
+        this.debugLogBuffer = new ComputeBuffer(this.debugLogStack.Length, debugLogStackSize);
+
+        try
+        {
+            this.debugLogBuffer.SetData(this.debugLogStack);
+            this.computeShader.SetBuffer(0, "LOGGER", this.debugLogBuffer);
+        }
+        catch(System.Exception ex)
+        {
+            Debug.LogError(ex.Message);
+        }
+    }
+
+    private string GetLoggerInfoString()
+    {
+        if (this.debugLogBuffer == null) return "Debugger Logger is not set";
+        string retVal = string.Empty;
+        this.debugLogBuffer.GetData(this.debugLogStack);
+        if (this.debugLogStack == null) return "Stack is empty";
+        if (this.debugLogStack.Length == 0) return "Stack is empty";
+        uint sortedList = this.debugLogStack[0].i;
+
+        for (int i = 0; i < loggerSize; i++)
+        {
+            if (sortedList > i)
+                retVal = $"{this.debugLogStack[i].tick} {this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}({this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}\n" + retVal;
+            else if (sortedList == i)
+                retVal = $"-> {this.debugLogStack[i].tick} {this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}({this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}\n" + retVal;
+            else
+                retVal += $"{this.debugLogStack[i].tick} {this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}({this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}\n";
+        }
+
+        retVal = $"current tick: {this.debugLogStack[0].sysTick - 1}, i: {this.debugLogStack[0].i}\n" + retVal;
+
+        return retVal;
     }
 
     private void GenerateRam()
@@ -170,9 +240,10 @@ public class ComputeTest : MonoBehaviour
 
     private void Update()
     {
-        if(this.IsDebug)
+        if (this.IsClearDebug) this.ClearLog();
+
+        if (this.IsDebug)
         {
-            this.ClearLog();
             int length = 0;
             if (this.ROMData != null)
             {
@@ -231,7 +302,7 @@ public class ComputeTest : MonoBehaviour
                     Debug.Log($"last data sect: img {b},{g},{r} : gpu {this.ram[0x200 + 390].data},{this.ram[0x200 + 391].data},{this.ram[0x200 + 392].data}");
                 }
             }
-            if(IsDebug_PC)
+            if(IsDebug_PC && this.registersBuffer != null)
             {
                 this.registersBuffer.GetData(registers);
                 if(registers[250].data != 0)
@@ -244,13 +315,20 @@ public class ComputeTest : MonoBehaviour
 
                 Debug.Log($"PC: {PCWhenNotO[0]:X}{PCWhenNotO[1]:X}{PCWhenNotO[2]:X}{PCWhenNotO[3]:X}");
             }
+
+            if (this.clocksBuffer != null)
+            {
+                this.clocksBuffer.GetData(this.clocks);
+
+                if(this.IsDebug) Debug.Log($"frames in ms(target):{this.clocks[0].data}, cycle:{this.clocks[1].data}, sys:{(float)this.SystemTime}, oldsys:{(long)this.clocks[2].data}, passes:{clocks[3].data}");
+            }
         }
 
-        if (this.clocksBuffer != null && IsDebug)
+        if(HasDebugger)
         {
-            this.clocksBuffer.GetData(this.clocks);
-
-            if(this.IsDebug) Debug.Log($"frames in ms(target):{this.clocks[0].data}, cycle:{this.clocks[1].data}, sys:{(float)this.SystemTime}, oldsys:{(long)this.clocks[2].data}, passes:{clocks[3].data}");
+            string loggerData = GetLoggerInfoString();
+            if(IsDebug) Debug.Log(loggerData);
+            TMPDebugLogger.text = loggerData;
         }
 
         switch (Input.inputString)
@@ -275,22 +353,25 @@ public class ComputeTest : MonoBehaviour
         }
     }
 
+    private void DisposeBuffers()
+    {
+        if (this.clocksBuffer != null) this.clocksBuffer.Dispose();
+        if (this.ramBuffer != null) this.ramBuffer.Dispose();
+        if (this.vramBuffer != null) this.vramBuffer.Dispose();
+        if (this.stackBuffer != null) this.stackBuffer.Dispose();
+        if (this.registersBuffer != null) this.registersBuffer.Dispose();
+        if (this.debugLogBuffer != null) this.debugLogBuffer.Dispose();
+        if (this.debugLogBuffer != null) this.debugLogBuffer.Dispose();
+    }
+
     private void OnDisable()
     {
-        if (this.clocksBuffer != null) clocksBuffer.Dispose();
-        if (this.ramBuffer != null) ramBuffer.Dispose();
-        if (this.vramBuffer != null) vramBuffer.Dispose();
-        if (this.stackBuffer != null) stackBuffer.Dispose();
-        if (this.registersBuffer != null) registersBuffer.Dispose();
+        DisposeBuffers();
     }
 
     private void OnApplicationQuit()
     {
-        if (this.clocksBuffer != null) clocksBuffer.Dispose();
-        if (this.ramBuffer != null) ramBuffer.Dispose();
-        if (this.vramBuffer != null) vramBuffer.Dispose();
-        if (this.stackBuffer != null) stackBuffer.Dispose();
-        if (this.registersBuffer != null) registersBuffer.Dispose();
+        DisposeBuffers();
     }
     public void ClearLog()
     {
