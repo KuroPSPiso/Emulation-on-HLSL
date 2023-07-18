@@ -595,13 +595,13 @@ MonoBehaviour:
   FPS: 60
   Cycle: 0
   RAMCapacity: 4096
-  FixedFPS: 26
+  FixedFPS: 7
   FPSEnable: 1
   IsClearDebug: 1
-  IsDebug: 1
+  IsDebug: 0
   IsDebug_ROMLoad: 0
   IsDebug_PC: 0
-  HasDebugger: 1
+  HasDebugger: 0
 --- !u!81 &963194230
 AudioListener:
   m_ObjectHideFlags: 0

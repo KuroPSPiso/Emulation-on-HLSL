@@ -331,9 +331,14 @@ public class ComputeTest : MonoBehaviour
 
         if(HasDebugger)
         {
+            TMPDebugLogger.enabled = true;
             string loggerData = GetLoggerInfoString();
             if(IsDebug) Debug.Log(loggerData);
             TMPDebugLogger.text = loggerData;
+        }
+        else
+        {
+            TMPDebugLogger.enabled = false;
         }
 
         switch (Input.inputString)
