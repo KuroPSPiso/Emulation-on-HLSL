@@ -518,20 +518,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: d55e86c3314926844aaf429d1e4b421d, type: 3}
-  renderTexture: {fileID: 0}
   TMPDebugLogger: {fileID: 621829649}
+  Renderer: {fileID: 0}
   ROMDataTex: {fileID: 2800000, guid: b52774d95c3eca94ab9fd4b13033643b, type: 3}
   trueResolutionX: 64
   trueResolutionY: 32
   resolutionX: 64
   resolutionY: 32
-  FPS: 1
+  FPS: 60
   Cycle: 0
   RAMCapacity: 4096
   FixedFPS: 26
   FPSEnable: 1
   IsClearDebug: 1
-  IsDebug: 0
+  IsDebug: 1
   IsDebug_ROMLoad: 0
   IsDebug_PC: 0
   HasDebugger: 1

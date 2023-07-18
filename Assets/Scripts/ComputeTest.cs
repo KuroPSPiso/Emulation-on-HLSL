@@ -10,8 +10,8 @@ using TMPro;
 public class ComputeTest : MonoBehaviour
 {
     public ComputeShader computeShader;
-    public RenderTexture renderTexture;
     public TMP_Text TMPDebugLogger;
+    public Material Renderer;
 
     //TOOD: remove TEMP
     public Texture2D ROMDataTex;
@@ -34,6 +34,7 @@ public class ComputeTest : MonoBehaviour
     private uint inputValue;
     private const int loggerSize = 10;
     private RenderTexture ROMData;
+    private RenderTexture renderTexture;
 
     struct SystemInfo
     {
@@ -91,6 +92,10 @@ public class ComputeTest : MonoBehaviour
             this.renderTexture.Create();
             this.renderTexture.filterMode = FilterMode.Point;
 
+            if (this.Renderer != null)
+            {
+                this.Renderer.mainTexture = this.renderTexture;
+            }
             this.Reset();
         }
 
