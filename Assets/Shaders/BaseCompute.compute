@@ -1,36 +1,22 @@
 // Each #kernel tells which function to compile; you can have many kernels
+#include "CPU.cginc"
+#include "DEBUGGER.cginc"
 #pragma kernel CSMain
+
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWTexture2D<float4> Result;
-
-float ResolutionX;
-float ResolutionY;
-
-struct Register
-{
-    float data;
-};
-
-struct SystemInfo
-{
-    float data;
-};
-
-struct SystemRam
-{
-    uint data;
-};
-
-RWStructuredBuffer<Register> Registers; //PC (Program Counter) = 0, A(Accumilator) = 1
-RWStructuredBuffer<SystemRam> RAM;
-RWStructuredBuffer<SystemInfo> Clocks; //TARGETFPS, CYCLE, OLDSYSTIME, FRAMECOUNTER
+RWTexture2D<float4> ROM;
 
 float SystemTime;
 float FixedFPS;
 bool FPSEnable;
+uint INPUT;
 
+static const uint LoadLocation = 0x200; //offset position
+
+//custom font numeric sprites for debug/fps
 static const int1 CHARSET[150] =
 {
     0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01,
@@ -45,13 +31,184 @@ static const int1 CHARSET[150] =
     0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01
 };
 
+//default hexadecimal sprites font
+static const uint1 SPRITES_CHARSET[80] = 
+{
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
+
+void LoadCharROM()
+{
+    for (uint i = 0; i < 40; i++)
+    {
+        RAM[i].data = SPRITES_CHARSET[i];
+    }
+};
+
+void LoadProgram(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThreadID)
+{
+    uint width = 0;
+    uint height = 0;
+    uint noOfLvls = 0;
+    ROM.GetDimensions(width, height);
+
+    uint len = 0;
+
+    //get len
+    if (width + height > 2) {
+        uint b1, g1, r1, b2;
+        float4 clrLength = 0, clrLength2 = 0;
+
+        clrLength = ROM.Load(int3(1, 0, 0));
+        clrLength2 = ROM.Load(int3(0, 0, 0));
+
+        b1 = (uint)round(clrLength.b * 255.0);
+        g1 = (uint)round(clrLength.g * 255.0);
+        r1 = (uint)round(clrLength.r * 255.0);
+        b2 = (uint)round(clrLength2.b * 255.0);
+
+        len += b1 << 0;
+        len += g1 << 8;
+        len += r1 << 16;
+        len += b2 << 24;
+
+        uint debug = 0;
+
+        if (debug > 0) //DEBUG length data in ROM data
+        {
+            VRAM[0].data = b1;
+            VRAM[1].data = g1;
+            VRAM[2].data = r1;
+            VRAM[3].data = b2;
+            VRAM[4].data = len;
+        }
+
+        float4 romBytes = 0;
+        
+        if (debug == 1)
+        {
+            romBytes = ROM.Load(int3(2, 0, 0));
+            b1 = (uint)round(romBytes.b * 255.0);
+            g1 = (uint)round(romBytes.g * 255.0);
+            r1 = (uint)round(romBytes.r * 255.0);
+            RAM[0].data = b1;
+            RAM[1].data = g1;
+            RAM[2].data = r1;
+        }
+        else if (debug == 2)
+        {
+            len = 2;
+            int iRAM = 0;
+            int x, y;
+            x = (2 + iRAM) % width;
+            y = (2 + iRAM) / width;
+            romBytes = ROM.Load(int3(x, y, 0));
+
+            if (iRAM + 0 < len) RAM[iRAM].data = (uint)round(romBytes.b * 255.0);
+            if (iRAM + 1 < len) RAM[iRAM + 1].data = (uint)round(romBytes.g * 255.0);
+            if (iRAM + 2 < len) RAM[iRAM + 2].data = (uint)round(romBytes.r * 255.0);
+        }
+
+        int iRAM = 0;
+        int colorByte = 0;
+        while (iRAM < len)
+        {
+            int romSect = iRAM;
+            int x, y;
+            x = (2 + colorByte) % width;
+            y = (2 + colorByte) / width;
+            romBytes = ROM.Load(int3(x, y, 0));
+
+            if (romSect + 0 < len)
+            {
+                //RAM[401 + romSect + 0].data = x;
+                //RAM[801 + romSect + 0].data = y;
+                RAM[LoadLocation + romSect + 0].data = (uint)round(romBytes.r * 255.0);
+                iRAM++;
+            }
+            if (romSect + 1 < len)
+            {
+                //RAM[401 + romSect + 1].data = x;
+                //RAM[801 + romSect + 1].data = y;
+                RAM[LoadLocation + romSect + 1].data = (uint)round(romBytes.g * 255.0);
+                iRAM++;
+            }
+            if (romSect + 2 < len)
+            {
+                //RAM[401 + romSect + 2].data = x;
+                //RAM[801 + romSect + 2].data = y;
+                RAM[LoadLocation + romSect + 2].data = (uint)round(romBytes.b * 255.0);
+                iRAM++;
+            }
+
+            //RAM[400].data = iRAM;
+            colorByte++; //could be replaced with iRAM / 3 (?), keep in for stability.
+        }
+    }
+
+    uint bufLen = 0;
+
+};
+
+void Cycle()
+{
+    if (!Registers[HALT_REG].data) //HALTED
+    {
+#if DEBUGGER == 1
+        uint oldPC = Registers[PC_REG].data;
+        //LogStatus(RAM[Registers[PC_REG].data].data, RAM[Registers[PC_REG].data + 1].data, 0xFF, Registers[PC_REG].data);
+        uint opCode = RAM[Registers[PC_REG].data].data << 8 | RAM[Registers[PC_REG].data + 1].data;
+        uint ticksInInstruction = ExecuteInstruction(opCode);
+        LogStatus(oldPC, opCode, Registers[FUNC_REG].data, Registers[PC_REG].data);
+        Registers[PC_REG].data += ticksInInstruction;
+        LogStatus(oldPC, opCode & 0x0FFF, 0xFE00, Registers[PC_REG].data);
+
+        if (Registers[PC_REG].data > PC_LIMIT) Registers[PC_REG].data -= PC_LIMIT;
+        uint newPC = Registers[PC_REG].data;
+
+        LogStatus(oldPC, opCode, 0xFF00, Registers[PC_REG].data);
+#else
+        uint opCode = RAM[Registers[PC_REG].data].data << 8 | RAM[Registers[PC_REG].data + 1].data;
+        Registers[PC_REG].data += ExecuteInstruction(opCode);
+
+        if (Registers[PC_REG].data > PC_LIMIT) Registers[PC_REG].data -= PC_LIMIT;
+#endif
+        //timers (sound scync)
+        //playsound
+    }
+}
+
+void Reset(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThreadID)
+{
+    if (!Registers[0x14].data) return;
+
+    LoadCharROM();
+    LoadProgram(id, threadid);
+    Registers[0x14].data = 0;
+};
+
 void ShowFPS(float val, float2 xy)
 {
     if (xy.x > 10 || xy.y > 4) return;
 
     val = val + 0.01; //float rounding correction
     int1 hundreds = 0, tens = 0, os = 0;
-
+    Registers[0x13].data = (uint)val & 0x00FF; //RAND
     if (val > 100)
     {
         hundreds = (val % 1000) / 100;
@@ -81,8 +238,62 @@ void ShowFPS(float val, float2 xy)
     if(setColour) Result[xy] = float4(1.0, 1.0, 1.0, 0.0);
 };
 
-[numthreads(10,1,1)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+void HandleInput()
+{
+    //joymap 0x00 - 0x0F
+    uint input = INPUT & 0x0F;
+    if (INPUT >> 1 & 0x01)
+    {
+        //do logic
+    }
+};
+
+void RawSound()
+{
+    //tbd
+};
+
+
+void ProcessDisplayRendering(uint3 id : SV_DispatchThreadID)
+{
+    SystemInfo targetFPS = Clocks[0];
+    SystemInfo cycle = Clocks[1];
+    SystemInfo oldSystemTime = Clocks[2];
+    SystemInfo gpuPasses = Clocks[3];
+    float elapsed = SystemTime - oldSystemTime.data;
+
+    float x = (id.x / ResolutionX) + (gpuPasses.data / 1000);
+    float y = id.y / ResolutionY;
+
+    //debug render running speed
+    uint debugRendering = 0;
+    if (debugRendering == 1)
+        if(id.x > (ResolutionX / 4) && id.x < (ResolutionX / 4 * 3)) SetPixel((uint) round(id.x), (uint) round(id.y));
+    
+    //render actual pixel data
+    float pixelValue = GetPixel(id.x, id.y, ResolutionX);
+    Result[id.xy] = pixelValue;
+
+    //debug
+    if(debugRendering == 2) Result[id.xy] = float4(x, y, 0.0, 0.0);
+
+    if (FPSEnable) {
+        float fpsData = 0;
+        if (FixedFPS >= 10 && FixedFPS <= 10 + 0x15) fpsData = Registers[FixedFPS - 10].data; //register data
+        else if (FixedFPS == 250) fpsData = (Registers[OP_REG].data >> 12) & 0x000F; //get opcode
+        else if (FixedFPS == 251) fpsData = (Registers[OP_REG].data >> 8) & 0x000F; //get opcode
+        else if (FixedFPS == 252) fpsData = (Registers[OP_REG].data >> 4) & 0x000F; //get opcode
+        else if (FixedFPS == 253) fpsData = Registers[OP_REG].data & 0x000F; //get opcode
+        else if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data) / 4); //fps
+        else if (FixedFPS == 6) fpsData = elapsed; //elapsed
+        else if (FixedFPS == 5) fpsData = SystemTime - oldSystemTime.data; //elapsed
+        else if (FixedFPS == 4) fpsData = SystemTime; //sys ms
+        else fpsData = Clocks[FixedFPS].data; //target ms, cycle, oldsys ms, frame counter 
+        ShowFPS(fpsData, id.xy);
+    }
+};
+
+void ProcessCPU(uint3 id : SV_DispatchThreadID, uint3 threadid : SV_GroupThreadID)
 {
     SystemInfo targetFPS = Clocks[0];
     SystemInfo cycle = Clocks[1];
@@ -91,12 +302,17 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float elapsed = SystemTime - oldSystemTime.data;
 
     if (id.x == 0 && id.y == 0) {
+        Reset(id, threadid);
+        HandleInput();
+
         //full frame render counter
         gpuPasses.data++;
         Clocks[3] = gpuPasses;
 
         //check fps
         if (elapsed > targetFPS.data) {
+            Cycle();
+
             Clocks[5 + Clocks[4].data].data = elapsed;
             Clocks[4].data++;
             if (Clocks[4].data > 3) Clocks[4].data = 0;
@@ -108,19 +324,17 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             Clocks[2] = oldSystemTime;
         }
     }
+}
 
-    float x = (id.x / ResolutionX) + (gpuPasses.data / 1000);
-    float y = id.y / ResolutionY;
-
-    Result[id.xy] = float4(x, y, 0.0, 0.0);
-
-    if (FPSEnable) {
-        float fpsData = 0;
-        if (FixedFPS > 6) fpsData = 1000 / ((Clocks[5].data + Clocks[6].data + Clocks[7].data + Clocks[8].data)/4); //fps
-        else if (FixedFPS == 6) fpsData = elapsed; //elapsed
-        else if (FixedFPS == 5) fpsData = SystemTime - oldSystemTime.data; //elapsed
-        else if (FixedFPS == 4) fpsData = SystemTime; //sys ms
-        else fpsData = Clocks[FixedFPS].data; //target ms, cycle, oldsys ms, frame counter 
-        ShowFPS(fpsData, id.xy);
+[numthreads(10,1,2)]
+void CSMain(uint3 id : SV_DispatchThreadID, uint threadIndex : SV_GroupIndex, uint3 threadid : SV_GroupThreadID)
+{
+    if (threadid.z == 0)
+    {
+        ProcessCPU(id, threadid);
+    }
+    else if (threadid.z == 1)
+    {
+        ProcessDisplayRendering(id);
     }
 };

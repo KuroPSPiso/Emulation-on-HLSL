@@ -1,0 +1,19 @@
+﻿<Window x:Class="romToImg.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:romToImg"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800" Loaded="Window_Loaded">
+    <Grid>
+        <Label x:Name="lblFile" Content="filename" HorizontalAlignment="Left" Margin="60,88,0,0" VerticalAlignment="Top"/>
+        <Button x:Name="btnOpenFile" Content="Open" HorizontalAlignment="Left" Margin="60,63,0,0" VerticalAlignment="Top" Click="btnOpenFile_Click"/>
+        <Image x:Name="imgResult" HorizontalAlignment="Left" Height="203" Margin="60,114,0,0" VerticalAlignment="Top" Width="203"/>
+        <Button x:Name="btnSave" Content="Save" HorizontalAlignment="Left" Margin="383,63,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="lblProcess" Content="waiting for file" HorizontalAlignment="Left" Margin="383,88,0,0" VerticalAlignment="Top"/>
+        <Slider x:Name="slider" HorizontalAlignment="Left" Margin="129,65,0,0" VerticalAlignment="Top" Width="235" Minimum="0" Maximum="9" IsSnapToTickEnabled="True" TickFrequency="1" ValueChanged="slider_ValueChanged"/>
+        <Label x:Name="lblResolution" Content="?/?" HorizontalAlignment="Left" Margin="129,88,0,0" VerticalAlignment="Top"/>
+
+    </Grid>
+</Window>
