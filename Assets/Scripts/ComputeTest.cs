@@ -21,6 +21,7 @@ public class ComputeTest : MonoBehaviour
     public int FPS = 60;
     public int Cycle = 0;
     public int RAMCapacity = 4096;
+    public bool FlipDisplayHor = false, FlipDisplayVert = true;
 
     [Header("Debug Info")]
     public int FixedFPS = 7;
@@ -121,6 +122,8 @@ public class ComputeTest : MonoBehaviour
         this.computeShader.SetFloat("ResolutionY", this.resolutionY);
         this.computeShader.SetFloat("SystemTime", (float)this.SystemTime);
         this.computeShader.SetBool("FPSEnable", this.FPSEnable);
+        this.computeShader.SetBool("FlipDisplayHor", this.FlipDisplayHor);
+        this.computeShader.SetBool("FlipDisplayVert", this.FlipDisplayVert);
 
         this.computeShader.SetFloat("FixedFPS", this.FixedFPS);
 

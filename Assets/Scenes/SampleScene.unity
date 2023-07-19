@@ -207,7 +207,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!20 &546637613
 Camera:
   m_ObjectHideFlags: 0
@@ -592,16 +592,16 @@ MonoBehaviour:
   trueResolutionY: 32
   resolutionX: 64
   resolutionY: 32
-  FPS: 60
+  FPS: 1
   Cycle: 0
   RAMCapacity: 4096
   FixedFPS: 7
   FPSEnable: 1
   IsClearDebug: 1
-  IsDebug: 0
+  IsDebug: 1
   IsDebug_ROMLoad: 0
   IsDebug_PC: 0
-  HasDebugger: 0
+  HasDebugger: 1
 --- !u!81 &963194230
 AudioListener:
   m_ObjectHideFlags: 0

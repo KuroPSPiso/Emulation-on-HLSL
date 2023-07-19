@@ -12,6 +12,9 @@ RWTexture2D<float4> ROM;
 float SystemTime;
 float FixedFPS;
 bool FPSEnable;
+bool FlipDisplayHor;
+bool FlipDisplayVert;
+
 uint INPUT;
 
 static const uint LoadLocation = 0x200; //offset position
@@ -174,14 +177,15 @@ void Cycle()
         //LogStatus(RAM[Registers[PC_REG].data].data, RAM[Registers[PC_REG].data + 1].data, 0xFF, Registers[PC_REG].data);
         uint opCode = RAM[Registers[PC_REG].data].data << 8 | RAM[Registers[PC_REG].data + 1].data;
         uint ticksInInstruction = ExecuteInstruction(opCode);
-        LogStatus(oldPC, opCode, Registers[FUNC_REG].data, Registers[PC_REG].data);
+        //LogStatus(oldPC, opCode, Registers[FUNC_REG].data, Registers[PC_REG].data);
         Registers[PC_REG].data += ticksInInstruction;
-        LogStatus(oldPC, opCode & 0x0FFF, 0xFE00, Registers[PC_REG].data);
+        //LogStatus(oldPC, opCode & 0x0FFF, 0xFE00, Registers[PC_REG].data);
 
         if (Registers[PC_REG].data > PC_LIMIT) Registers[PC_REG].data -= PC_LIMIT;
         uint newPC = Registers[PC_REG].data;
 
-        LogStatus(oldPC, opCode, 0xFF00, Registers[PC_REG].data);
+        //LogStatus(oldPC, opCode, 0xFF00, Registers[PC_REG].data);
+        LogStatus(oldPC, opCode, Registers[FUNC_REG].data, Registers[PC_REG].data);
 #else
         uint opCode = RAM[Registers[PC_REG].data].data << 8 | RAM[Registers[PC_REG].data + 1].data;
         Registers[PC_REG].data += ExecuteInstruction(opCode);
@@ -271,7 +275,11 @@ void ProcessDisplayRendering(uint3 id : SV_DispatchThreadID)
         if(id.x > (ResolutionX / 4) && id.x < (ResolutionX / 4 * 3)) SetPixel((uint) round(id.x), (uint) round(id.y));
     
     //render actual pixel data
-    float pixelValue = GetPixel(id.x, id.y, ResolutionX);
+    //float pixelValue = GetPixel(id.x, abs((ResolutionY * FlipDisplayVert) - id.y - (1 * FlipDisplayVert)), ResolutionX);
+    float pixelValue = GetPixel(
+        ((ResolutionX * FlipDisplayHor) - id.x - (1 * FlipDisplayHor)) * (-1 - (-2 * FlipDisplayHor)),
+        ((ResolutionY * FlipDisplayVert) - id.y - (1 * FlipDisplayVert)) * (-1 - (-2 * FlipDisplayVert)),
+        ResolutionX);
     Result[id.xy] = pixelValue;
 
     //debug

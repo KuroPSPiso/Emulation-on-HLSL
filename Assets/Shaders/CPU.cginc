@@ -37,20 +37,20 @@ int NOP() {
 
 //clear display
 int CLR() {
-    return 0;
+    return ClearScreen();
 };
 
 //pop stack and PC = value of pop
 int RET() {
     Registers[PC_REG].data = STACK[Registers[SP_REG].data].data;
     Registers[SP_REG].data -= 1;
-
-    return 0;
+    
+    return 2;
 }
 
 int FuncSystem(uint opCode) //0
 {
-    [call] switch (opCode & 0x00FF) {
+    [branch] switch (opCode & 0x00FF) {
     case 0xE0: 
         return CLR();
     case 0xEE:
@@ -61,9 +61,7 @@ int FuncSystem(uint opCode) //0
 
 int FuncJP(uint opCode) //1
 {
-    LogStatus(0xFFFF, opCode, 0xFA00, Registers[PC_REG].data);
     Registers[PC_REG].data = opCode & 0x0FFF;
-    LogStatus(0xFFFF, opCode, 0xFA01, Registers[PC_REG].data);
     return 0;
 };
 
@@ -105,7 +103,8 @@ int FuncLD_VX_NN(uint opCode) //6
 int FuncADD_VX_NN(uint opCode) //7
 {
     Registers[X(opCode)].data = Registers[X(opCode)].data + (opCode & 0x00FF);
-    Registers[X(opCode)].data &= REG_LIMIT; //rollover limiter (not present)
+
+    if (Registers[X(opCode)].data > REG_LIMIT) Registers[X(opCode)].data -= REG_LIMIT; 
     return 0;
 };
 
@@ -136,7 +135,7 @@ int FuncALU_VX_VY(uint opCode) //8
         Registers[0xF].data = 0;
         if (Registers[X(opCode)].data > REG_LIMIT) {
             Registers[0xF].data = 1; //set carry flag
-            Registers[X(opCode)].data &= REG_LIMIT; //rollover limiter (not present)
+            Registers[X(opCode)].data -= REG_LIMIT; //rollover limiter (not present)
         }
         return 0;
     //SUB Reg[X], Reg[Y]
@@ -149,7 +148,7 @@ int FuncALU_VX_VY(uint opCode) //8
         }
 
         Registers[X(opCode)].data -= Registers[Y(opCode)].data;
-        Registers[X(opCode)].data &= REG_LIMIT;
+        if (Registers[X(opCode)].data > REG_LIMIT) Registers[X(opCode)].data -= REG_LIMIT;
         return 0;
     //SHR Reg[X], shift right and store carry
     case 0x6:
@@ -191,17 +190,46 @@ int FuncIREG(uint opCode) //A
 int FuncJP_PC(uint opCode) //B
 {
     Registers[PC_REG].data = Registers[0].data + (opCode & 0x0FFF);
-    Registers[PC_REG].data &= PC_LIMIT; //rollover limiter (not present)
+    if(Registers[PC_REG].data >= PC_LIMIT) Registers[PC_REG].data -= PC_LIMIT; //rollover limiter (not present)
     return 0;
 };
 
 int FuncRAND(uint opCode) //C
 {
     Registers[X(opCode)].data = (uint)Clocks[0x04].data & (opCode & 0x00FF);
-    Registers[X(opCode)].data &= REG_LIMIT;  //rollover limiter (not present)
+    if (Registers[X(opCode)].data > REG_LIMIT) Registers[X(opCode)].data -= REG_LIMIT;
     return 0;
 };
 
+int FuncDISPLAY(uint opCode) //D
+{
+    uint x = Registers[X(opCode)].data;
+    uint y = Registers[Y(opCode)].data;
+
+    uint width = 8;
+    uint height = opCode & 0x000F; //0x000N nibble
+    Registers[0xF].data = 0; //reset collision flag
+    uint sprite;
+
+    for (uint row = 0; row < height; row++)
+    {
+        sprite = RAM[Registers[I_REG].data + row].data;
+        for (uint column = 0; column < width; column++)
+        {
+            if ((sprite & (0x80 >> column)) != 0)
+            {
+                if (VRAM[(x + column + ((y + row) * 64))].data == 1)
+                {
+                    Registers[0xF].data = 1;
+                }
+                VRAM[(x + column + ((y + row) * 64))].data ^= 1;
+            }
+        }
+    }
+    return 0;
+};
+
+/*
 int FuncDISPLAY(uint opCode) //D
 {
     //store n from ADDY in I
@@ -225,7 +253,7 @@ int FuncDISPLAY(uint opCode) //D
     }
 
     return 0;
-};
+};*/
 
 int FuncKEY(uint opCode) //E
 {

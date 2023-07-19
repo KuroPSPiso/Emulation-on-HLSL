@@ -28,3 +28,12 @@ uint GetPixel(float x, float y, float width)
     uint posY = (uint) round(y) * (uint) round(width);
     return VRAM[posX + posY].data;
 }
+
+uint ClearScreen()
+{
+    for (uint i = 0; i < (uint)round(ResolutionX) * (uint)round(ResolutionY); i++)
+    {
+        VRAM[i].data = 0x00;
+    }
+    return 2;
+}
