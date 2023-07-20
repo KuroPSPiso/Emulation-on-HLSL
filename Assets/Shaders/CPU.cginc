@@ -42,10 +42,10 @@ int CLR() {
 
 //pop stack and PC = value of pop
 int RET() {
-    Registers[PC_REG].data = STACK[Registers[SP_REG].data].data;
     Registers[SP_REG].data -= 1;
+    Registers[PC_REG].data = STACK[Registers[SP_REG].data].data;
     
-    return 2;
+    return 0;
 }
 
 int FuncSystem(uint opCode) //0
@@ -67,8 +67,8 @@ int FuncJP(uint opCode) //1
 
 int FuncCALL(uint opCode) //2
 {
-    Registers[SP_REG].data += 1; //up STACK Counter
     STACK[Registers[SP_REG].data].data = Registers[PC_REG].data; //store PC in STACK
+    Registers[SP_REG].data += 1; //up STACK Counter
     Registers[PC_REG].data = opCode & 0x0FFF; //set NNN in PC
     return 0;
 };
@@ -102,9 +102,8 @@ int FuncLD_VX_NN(uint opCode) //6
 
 int FuncADD_VX_NN(uint opCode) //7
 {
-    Registers[X(opCode)].data = Registers[X(opCode)].data + (opCode & 0x00FF);
-
-    if (Registers[X(opCode)].data > REG_LIMIT) Registers[X(opCode)].data -= REG_LIMIT; 
+    uint overflow = (opCode & 0x00FF) > (REG_LIMIT - Registers[X(opCode)].data);
+    Registers[X(opCode)].data += (opCode & 0x00FF) - ((REG_LIMIT + 1) * overflow);
     return 0;
 };
 
@@ -130,25 +129,14 @@ int FuncALU_VX_VY(uint opCode) //8
         return 0;
     //ADD Reg[X], Reg[Y]
     case 0x4:
-        Registers[X(opCode)].data += Registers[Y(opCode)].data;
-        //is carry?
-        Registers[0xF].data = 0;
-        if (Registers[X(opCode)].data > REG_LIMIT) {
-            Registers[0xF].data = 1; //set carry flag
-            Registers[X(opCode)].data -= REG_LIMIT; //rollover limiter (not present)
-        }
+        Registers[0xF].data = Registers[Y(opCode)].data > (REG_LIMIT - Registers[X(opCode)].data);
+        Registers[X(opCode)].data += Registers[Y(opCode)].data - ((REG_LIMIT + 1) * Registers[0xF].data);
         return 0;
     //SUB Reg[X], Reg[Y]
     case 0x5:
         //is borrow?
-        Registers[0xF].data = 0;
-        if (Registers[X(opCode)].data > Registers[Y(opCode)].data)
-        {
-            Registers[0xF].data = 1; //set carry flag
-        }
-
-        Registers[X(opCode)].data -= Registers[Y(opCode)].data;
-        if (Registers[X(opCode)].data > REG_LIMIT) Registers[X(opCode)].data -= REG_LIMIT;
+        Registers[0xF].data = Registers[Y(opCode)].data > Registers[X(opCode)].data;
+        Registers[X(opCode)].data += ((REG_LIMIT + 1) * Registers[0xF].data) - Registers[Y(opCode)].data;
         return 0;
     //SHR Reg[X], shift right and store carry
     case 0x6:
@@ -157,14 +145,17 @@ int FuncALU_VX_VY(uint opCode) //8
         return 0;
     //SUBN Reg[X], Reg[Y]
     case 0x7:
-        //is borrow?
-        Registers[0xF].data = 0;
+        //is borrow? inverted
+        Registers[0xF].data = !(Registers[X(opCode)].data > Registers[Y(opCode)].data);
+        Registers[X(opCode)].data = ((REG_LIMIT + 1) * !Registers[0xF].data) + Registers[Y(opCode)].data - Registers[X(opCode)].data;
+
+        /*Registers[0xF].data = 0;
         if (Registers[Y(opCode)].data > Registers[X(opCode)].data)
         {
             Registers[0xF].data = 1; //set carry flag
         }
 
-        Registers[X(opCode)].data = Registers[Y(opCode)].data - Registers[X(opCode)].data;
+        Registers[X(opCode)].data = Registers[Y(opCode)].data - Registers[X(opCode)].data;*/
         return 0;
     //SHL Reg[X], shift left and store carry
     case 0xE:
@@ -218,11 +209,7 @@ int FuncDISPLAY(uint opCode) //D
         {
             if ((sprite & (0x80 >> column)) != 0)
             {
-                if (VRAM[(x + column + ((y + row) * 64))].data == 1)
-                {
-                    Registers[0xF].data = 1;
-                }
-                VRAM[(x + column + ((y + row) * 64))].data ^= 1;
+                Registers[0xF].data = SetPixel(x + column, y + row);
             }
         }
     }

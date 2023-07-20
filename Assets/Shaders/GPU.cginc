@@ -10,6 +10,7 @@ RWStructuredBuffer<SystemRam> VRAM; //0x00 - ?
 
 uint SetPixel(uint x, uint y)
 {
+    /*
     uint resX = (uint) round(ResolutionX);
     uint resY = (uint) round(ResolutionY);
 
@@ -19,7 +20,13 @@ uint SetPixel(uint x, uint y)
     if (y > resY) y -= resY;
     else if (y < 0) y += resY;
 
-    return !(VRAM[x + (y * resX)].data ^= 1);
+    return !(VRAM[x + (y * resX)].data ^= 1);*/
+
+    uint resX = (uint) round(ResolutionX);
+    uint resY = (uint) round(ResolutionY);
+    uint setFlag = VRAM[x + y * resX].data;
+    VRAM[x + y * resX].data ^= 1;
+    return setFlag;
 }
 
 uint GetPixel(float x, float y, float width)
@@ -35,5 +42,5 @@ uint ClearScreen()
     {
         VRAM[i].data = 0x00;
     }
-    return 2;
+    return 0;
 }
