@@ -172,7 +172,21 @@ void Cycle()
 {
     if (!Registers[HALT_REG].data) //HALTED
     {
+        uint opCode = RAM[Registers[PC_REG].data].data << 8 | RAM[Registers[PC_REG].data + 1].data;
 #if DEBUGGER == 1
+        uint debug_old_PC = Registers[PC_REG].data;
+        uint debug_opCode = opCode;
+#endif
+        Registers[PC_REG].data += ExecuteInstruction(opCode);
+
+        if (Registers[PC_REG].data > PC_LIMIT) Registers[PC_REG].data -= PC_LIMIT;
+
+#if DEBUGGER == 1
+        uint debug_new_PC = Registers[PC_REG].data;
+        LogStatus(debug_old_PC, debug_opCode, Registers[FUNC_REG].data, debug_new_PC);
+#endif
+
+/*#if DEBUGGER == 1
         uint oldPC = Registers[PC_REG].data;
         //LogStatus(RAM[Registers[PC_REG].data].data, RAM[Registers[PC_REG].data + 1].data, 0xFF, Registers[PC_REG].data);
         uint opCode = RAM[Registers[PC_REG].data].data << 8 | RAM[Registers[PC_REG].data + 1].data;
@@ -191,7 +205,7 @@ void Cycle()
         Registers[PC_REG].data += ExecuteInstruction(opCode);
 
         if (Registers[PC_REG].data > PC_LIMIT) Registers[PC_REG].data -= PC_LIMIT;
-#endif
+#endif*/
         //timers (sound scync)
         //playsound
     }

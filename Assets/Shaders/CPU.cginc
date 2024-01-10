@@ -8,8 +8,8 @@
 #define SP_REG 0x15
 #define OP_REG 0xFF
 #define FUNC_REG 0xFE
-#define X(opcode) (opcode & 0x0F00) >> 8
-#define Y(opcode) (opcode & 0x00F0) >> 4
+#define X(opcode) ((opcode & 0x0F00) >> 8)
+#define Y(opcode) ((opcode & 0x00F0) >> 4)
 #define REG_LIMIT 0xFF
 #define PC_LIMIT 0xFFF
 
@@ -76,14 +76,14 @@ int FuncCALL(uint opCode) //2
 //skip if equal Reg[X] == NN
 int FuncSE_VX_NN(uint opCode) //3
 {
-    if(Registers[X(opCode)].data == opCode & 0x00FF) return 2; //up PC
+    if(Registers[X(opCode)].data == (opCode & 0x00FF)) return 2; //up PC
     return 0;
 };
 
 //skip if not equal Reg[X] == NN
 int FuncSNE_VX_NN(uint opCode) //4
 {
-    if (Registers[X(opCode)].data != opCode & 0x00FF) return 2; //up PC
+    if (Registers[X(opCode)].data != (opCode & 0x00FF)) return 2; //up PC
     return 0;
 };
 
@@ -107,6 +107,38 @@ int FuncADD_VX_NN(uint opCode) //7
     return 0;
 };
 
+int FuncALU_SUB_VX_VY(uint opCode) //8xx5
+{
+    //add logic to lock to 0xFF;
+    uint oldX = Registers[X(opCode)].data;
+
+    //fix for borrow with undetermined uint size (0xFFFF -> 0xFF)
+    if (Registers[Y(opCode)].data > Registers[X(opCode)].data)
+    {
+        //Y is bigger than X causing a borrow always.
+        Registers[X(opCode)].data = (REG_LIMIT - Registers[Y(opCode)].data) + Registers[X(opCode)].data;
+    }
+    else
+    {
+        Registers[X(opCode)].data = Registers[X(opCode)].data - Registers[Y(opCode)].data;
+    }
+    Registers[0xF].data = oldX > Registers[X(opCode)].data;
+    return 0;
+}
+
+int FuncALU_ADD_VX_VY(uint opCode) //8xx4
+{
+    uint oldX = Registers[X(opCode)].data;
+
+    Registers[X(opCode)].data += Registers[Y(opCode)].data;
+
+    //fix for overflow *carry*
+    if (Registers[X(opCode)].data > REG_LIMIT) Registers[X(opCode)].data -= REG_LIMIT;
+
+    Registers[0xF].data = oldX > Registers[X(opCode)].data;
+    return 0;
+}
+
 int FuncALU_VX_VY(uint opCode) //8
 {
     //0x000N ALU functions
@@ -129,14 +161,17 @@ int FuncALU_VX_VY(uint opCode) //8
         return 0;
     //ADD Reg[X], Reg[Y]
     case 0x4:
-        Registers[0xF].data = Registers[Y(opCode)].data > (REG_LIMIT - Registers[X(opCode)].data);
-        Registers[X(opCode)].data += Registers[Y(opCode)].data - ((REG_LIMIT + 1) * Registers[0xF].data);
+		FuncALU_ADD_VX_VY(opCode);
+		
+        //Registers[0xF].data = Registers[Y(opCode)].data > (REG_LIMIT - Registers[X(opCode)].data);
+        //Registers[X(opCode)].data += Registers[Y(opCode)].data - ((REG_LIMIT + 1) * Registers[0xF].data);
         return 0;
     //SUB Reg[X], Reg[Y]
     case 0x5:
+		FuncALU_SUB_VX_VY(opCode);
         //is borrow?
-        Registers[0xF].data = Registers[Y(opCode)].data > Registers[X(opCode)].data;
-        Registers[X(opCode)].data += ((REG_LIMIT + 1) * Registers[0xF].data) - Registers[Y(opCode)].data;
+        //Registers[0xF].data = Registers[Y(opCode)].data > Registers[X(opCode)].data;
+        //Registers[X(opCode)].data += ((REG_LIMIT + 1) * Registers[0xF].data) - Registers[Y(opCode)].data;
         return 0;
     //SHR Reg[X], shift right and store carry
     case 0x6:
@@ -145,17 +180,10 @@ int FuncALU_VX_VY(uint opCode) //8
         return 0;
     //SUBN Reg[X], Reg[Y]
     case 0x7:
+		//TODO: Check if still valid, tests roms seems to say yes
         //is borrow? inverted
         Registers[0xF].data = !(Registers[X(opCode)].data > Registers[Y(opCode)].data);
         Registers[X(opCode)].data = ((REG_LIMIT + 1) * !Registers[0xF].data) + Registers[Y(opCode)].data - Registers[X(opCode)].data;
-
-        /*Registers[0xF].data = 0;
-        if (Registers[Y(opCode)].data > Registers[X(opCode)].data)
-        {
-            Registers[0xF].data = 1; //set carry flag
-        }
-
-        Registers[X(opCode)].data = Registers[Y(opCode)].data - Registers[X(opCode)].data;*/
         return 0;
     //SHL Reg[X], shift left and store carry
     case 0xE:
@@ -244,6 +272,7 @@ int FuncDISPLAY(uint opCode) //D
 
 int FuncKEY(uint opCode) //E
 {
+	//TODO: import keys from unity front-end
     return 0;
 };
 

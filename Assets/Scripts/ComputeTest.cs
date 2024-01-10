@@ -6,6 +6,9 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.IO;
+using System.Text;
+using System;
 
 public class ComputeTest : MonoBehaviour
 {
@@ -164,6 +167,8 @@ public class ComputeTest : MonoBehaviour
         }
     }
 
+    SortedDictionary<uint, string> LoggerData = new SortedDictionary<uint, string>();
+
     private string GetLoggerInfoString()
     {
         if (this.debugLogBuffer == null) return "Debugger Logger is not set";
@@ -171,19 +176,54 @@ public class ComputeTest : MonoBehaviour
         this.debugLogBuffer.GetData(this.debugLogStack);
         if (this.debugLogStack == null) return "Stack is empty";
         if (this.debugLogStack.Length == 0) return "Stack is empty";
-        uint sortedList = this.debugLogStack[0].i;
+        //uint sortedList = this.debugLogStack[0].i;
 
         for (int i = 0; i < loggerSize; i++)
         {
-            if (sortedList > i)
-                retVal = $"{this.debugLogStack[i].tick} {this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}({this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}\n" + retVal;
-            else if (sortedList == i)
-                retVal = $"-> {this.debugLogStack[i].tick} {this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}({this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}\n" + retVal;
+            if (!LoggerData.ContainsKey(this.debugLogStack[i].tick)) LoggerData.Add(this.debugLogStack[i].tick, $"{this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}(func {this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}");
             else
+            {
+                LoggerData.Remove(this.debugLogStack[i].tick);
+                LoggerData.Add(this.debugLogStack[i].tick, $"{this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}({this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}");
+            }
+
+            /*if (sortedList > i)
+            {
+                retVal = $"{this.debugLogStack[i].tick} {this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}({this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}\n" + retVal;
+            }
+            else if (sortedList == i)
+            {
+                retVal = $"-> {this.debugLogStack[i].tick} {this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}({this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}\n" + retVal;
+            }
+            else
+            {
                 retVal += $"{this.debugLogStack[i].tick} {this.debugLogStack[i].pc:X}->{this.debugLogStack[i].opCode:X}({this.debugLogStack[i].func:X}) to {this.debugLogStack[i].newPC:X}\n";
+            }*/
+            
         }
 
-        retVal = $"current tick: {this.debugLogStack[0].sysTick - 1}, i: {this.debugLogStack[0].i}\n" + retVal;
+        int loopLimit = 10;
+        FileStream fs = new FileStream("romLogger.log", FileMode.OpenOrCreate);
+
+        for (uint i = (uint) LoggerData.Keys.Count; i > 0; i--)
+        {
+            string val = string.Empty;
+            LoggerData.TryGetValue(i, out val);
+            if (!string.IsNullOrEmpty(val) && loopLimit > 0)
+            {
+                retVal += $"tick\t{i}:{val}\n";
+                loopLimit--;
+            }
+
+            using (MemoryStream ms = new MemoryStream(Encoding.ASCII.GetBytes($"{ROMDataTex.name}::tick\t{i}:{val}\n")))
+            {
+                fs.Write(ms.ToArray(), 0, (int)ms.Length);
+            }
+        }
+
+        fs.Close();
+
+        //retVal = $"current tick: {this.debugLogStack[0].sysTick - 1}, i: {this.debugLogStack[0].i}\n" + retVal;
 
         return retVal;
     }
